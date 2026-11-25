@@ -3,135 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi App Musical Completa</title>
+    <title>EthnoSynth Studio - DAW</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 15px; background-color: #f4f4f9; color: #333; }
-        .panel { border: 2px solid #333; padding: 15px; margin-bottom: 20px; border-radius: 8px; background-color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .panel h2 { margin-top: 0; color: #2c3e50; font-size: 1.2rem; }
-        input, select, button { padding: 10px; margin: 5px 0; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
-        button { cursor: pointer; background-color: #007bff; color: white; border: none; font-weight: bold; }
-        button:hover { background-color: #0056b3; }
-        button:disabled { background-color: #ccc; cursor: not-allowed; }
-        #zonaReproductor { display: none; margin-top: 20px; }
-        .fila-admin { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
-        .efectos-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 15px; }
-        .control-efecto { background: #ecf0f1; padding: 10px; border-radius: 5px; }
-        input[type="range"] { width: 100%; padding: 0; }
+        :root {
+            --bg-dark: #121212;
+            --bg-panel: #1e1e1e;
+            --bg-panel-light: #2d2d2d;
+            --text-main: #e0e0e0;
+            --text-muted: #888;
+            --accent-blue: #007bff;
+            --accent-red: #e74c3c;
+            --accent-green: #27ae60;
+            --accent-orange: #e67e22;
+            --border-color: #333;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: var(--bg-dark); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        @media (min-width: 768px) {
-            body { max-width: 900px; margin: 20px auto; }
-            .fila-admin { flex-direction: row; align-items: center; }
-            input, select, button { width: auto; }
-            input[type="text"], input[type="number"], input[type="file"] { flex-grow: 1; }
-            .efectos-grid { grid-template-columns: 1fr 1fr; }
+        /* Barra Superior */
+        .top-bar { background-color: var(--bg-panel); padding: 10px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .top-bar h1 { margin: 0; font-size: 1.2rem; color: var(--accent-blue); letter-spacing: 1px; }
+        
+        /* Layout Principal */
+        .main-layout { display: flex; flex: 1; overflow: hidden; width: 100%; height: 100vh; }
+.sidebar { flex: 0 0 300px; /* Ancho fijo de 300px */ }
+.editor-area { flex: 1; min-width: 0; /* Permite que el editor se encoja */ }
+        
+        /* Panel Izquierdo (Controles) */
+        .sidebar { width: 300px; background-color: var(--bg-panel); border-right: 1px solid var(--border-color); padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+        .control-group { background-color: var(--bg-panel-light); padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); }
+        .control-group h3 { margin: 0 0 10px 0; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; }
+        
+        /* Controles de Entrada */
+        button { cursor: pointer; background-color: var(--bg-panel-light); color: var(--text-main); border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 4px; font-weight: bold; transition: all 0.2s; width: 100%; margin-bottom: 5px; }
+        button:hover { background-color: #3d3d3d; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-record { background-color: var(--accent-red); border-color: var(--accent-red); }
+        .btn-record:hover { background-color: #c0392b; }
+        .btn-play { background-color: var(--accent-green); border-color: var(--accent-green); color: white; }
+        .btn-export { background-color: var(--accent-blue); border-color: var(--accent-blue); color: white; }
+        
+        /* Deslizadores */
+        input[type="range"] { width: 100%; margin: 5px 0; accent-color: var(--accent-blue); }
+        label { font-size: 0.85rem; color: var(--text-muted); display: block; margin-top: 5px; }
+        
+        /* Área del Piano Roll */
+        .editor-area { flex: 1; display: flex; flex-direction: column; background-color: #0a0a0a; }
+        #pianoRollContainer { flex: 1; width: 100%; overflow: auto; border-bottom: 1px solid var(--border-color); }
+        
+        /* Piano Virtual */
+        .piano-container { height: 120px; background-color: var(--bg-panel); display: flex; justify-content: center; position: relative; border-top: 1px solid var(--border-color); }
+        .tecla-blanca { width: 45px; height: 100%; background: #f0f0f0; border: 1px solid #999; border-radius: 0 0 5px 5px; color: #333; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 10px; box-sizing: border-box; cursor: pointer; user-select: none; }
+        .tecla-blanca:active { background: var(--accent-blue); color: white; }
+        .tecla-negra { width: 30px; height: 60%; background: #222; border: 1px solid #000; border-radius: 0 0 3px 3px; color: #aaa; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 5px; box-sizing: border-box; position: absolute; cursor: pointer; z-index: 2; user-select: none; }
+        .tecla-negra:active { background: var(--accent-blue); }
+        
+        /* Badges y Textos */
+        .status-text { font-size: 0.9rem; color: var(--accent-red); font-weight: bold; height: 20px; margin-top: 10px; }
+        
+        @media (max-width: 768px) {
+            .main-layout { flex-direction: column; }
+            .sidebar { width: 100%; height: 40%; border-right: none; border-bottom: 1px solid var(--border-color); }
+            .tecla-blanca { width: 35px; }
         }
     </style>
 </head>
 <body>
-    <!-- PANEL DE ADMINISTRADOR -->
-    <div class="panel">
-        <h2>⚙️ Mi Panel (Administrador)</h2>
-        
-        <h3>1. Instrumentos Estándar</h3>
-        <div class="fila-admin">
-            <input type="text" id="nuevoNombre" placeholder="Ej. Mi Flauta">
-            <select id="nuevoSonido">
-                <option value="acoustic_grand_piano">Piano Acústico</option>
-                <option value="flute">Flauta</option>
-                <option value="violin">Violín</option>
-                <option value="trumpet">Trompeta</option>
-                <option value="acoustic_guitar_nylon">Guitarra Acústica</option>
-            </select>
-            <button id="botonAgregarInstrumento">➕ Agregar</button>
-        </div>
-
-        <h3>2. Instrumentos Étnicos (Archivos .sf2)</h3>
-        <div class="fila-admin">
-            <input type="text" id="nuevoNombreEtnicos" placeholder="Ej. Quena Real">
-            <input type="file" id="archivoSF2" accept=".sf2">
-            <input type="number" id="programaSF2" placeholder="Nº Programa (0-127)" value="0" style="width: 120px;">
-            <button id="botonCargarSF2" style="background-color: #8e44ad;">⬆️ Subir .sf2</button>
-        </div>
-
-        <h3>3. Estilos Musicales</h3>
-        <div class="fila-admin">
-            <input type="text" id="nuevoEstiloNombre" placeholder="Ej. Étnico Andino">
-            <input type="number" id="nuevoEstiloBPM" placeholder="BPM (ej. 90)" value="90">
-            <button id="botonAgregarEstilo" style="background-color: #e67e22;">➕ Agregar Estilo</button>
-        </div>
-        
-        <div id="listaInstrumentos" style="margin-top: 10px; font-weight: bold; color: #27ae60;"></div>
-        <div id="listaEstilos" style="margin-top: 10px; font-weight: bold; color: #d35400;"></div>
+    <!-- Barra Superior -->
+    <div class="top-bar">
+        <h1>🌌 EthnoSynth Studio</h1>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">Proyecto: Sin título</div>
     </div>
 
-    <!-- ESTUDIO DEL USUARIO -->
-    <div class="panel">
-        <h2>🎙️ Estudio de Grabación</h2>
-        
-        <!-- BOTONES DE GRABACIÓN -->
-        <button id="botonGrabar">🔴 Empezar a Grabar</button>
-        <button id="botonDetener" disabled>⏹️ Detener</button>
-        
-        <hr style="margin: 15px 0;">
+    <!-- Layout Principal -->
+    <div class="main-layout">
+        <!-- Panel Izquierdo: Controles y Efectos -->
+        <div class="sidebar">
+            <!-- Grabación -->
+            <div class="control-group">
+                <h3>Grabación</h3>
+                <button id="botonGrabarPiano" class="btn-record">🔴 Grabar (Piano)</button>
+                <button id="botonGrabarMicro" style="background-color: var(--accent-orange); border-color: var(--accent-orange);">🎤 Grabar (Micrófono)</button>
+                <button id="botonDetenerGrabacion" disabled>⏹️ Detener</button>
+                <button id="botonLimpiar" style="margin-top: 10px; background: transparent; border: 1px solid #555;">🗑️ Limpiar Pista</button>
+                <div id="estadoGrabacion" class="status-text"></div>
+            </div>
 
-        <!-- NUEVA SECCIÓN: SUBIR ARCHIVO (Para cuando no hay micrófono) -->
-        <h3>📂 O sube un audio de prueba</h3>
-        <div class="fila-admin">
-            <input type="file" id="archivoAudio" accept="audio/*">
-            <button id="botonProcesarArchivo" style="background-color: #f39c12;">▶️ Procesar Audio</button>
+            <!-- Instrumento -->
+            <div class="control-group">
+                <h3>Instrumento</h3>
+                <select id="selectorInstrumentoUsuario" style="width: 100%; padding: 8px; background: var(--bg-dark); color: white; border: 1px solid var(--border-color); border-radius: 4px;">
+                    <option value="acoustic_grand_piano">Piano</option>
+                    <!-- Aquí se cargarán los .sf2 -->
+                </select>
+            </div>
+
+            <!-- Efectos -->
+            <div class="control-group">
+                <h3>Rack de Efectos</h3>
+                <label>Reverb: <span id="valReverb">30</span>%</label>
+                <input type="range" id="reverbSlider" min="0" max="100" value="30">
+                
+                <label>Delay: <span id="valDelay">20</span>%</label>
+                <input type="range" id="delaySlider" min="0" max="100" value="20">
+                
+                <label>Flanger: <span id="valFlanger">0</span>%</label>
+                <input type="range" id="flangerSlider" min="0" max="100" value="0">
+                
+                <label>Wah-Wah: <span id="valWah">0</span>%</label>
+                <input type="range" id="wahSlider" min="0" max="100" value="0">
+            </div>
+
+            <!-- Acciones -->
+            <div class="control-group">
+                <h3>Acciones</h3>
+                <button id="botonReproducirMelodia" class="btn-play">🎹 Reproducir Pista</button>
+                <button id="botonExportarAudio" class="btn-export">💾 Exportar WAV</button>
+            </div>
         </div>
 
-        <p id="estadoTexto" style="display: none; font-weight: bold; color: blue;"></p>
-        <hr>
-        
-        <div id="zonaReproductor">
-            <audio id="reproductorAudio" controls style="width: 100%;"></audio>
-            <br><br>
-            
-            <label>Estilo Musical:</label>
-            <select id="selectorEstiloUsuario"><option value="">-- Sin estilo --</option></select>
-
-            <label>Instrumento:</label>
-            <select id="selectorInstrumentoUsuario"></select>
-            <br><br>
-
-            <button id="botonReproducirMelodia">🎹 Reproducir con Efectos</button>
-            <button id="botonExportarAudio" style="background-color: #27ae60; display: none;">💾 Exportar Melodía (WAV)</button>
-            <br><br>
-
-            <!-- CONTROLES DE EFECTOS -->
-            <h3>🎛️ Efectos de Sonido</h3>
-            <div class="efectos-grid">
-                <div class="control-efecto">
-                    <label>Reverb: <span id="valReverb">30</span>%</label>
-                    <input type="range" id="reverbSlider" min="0" max="100" value="30">
-                </div>
-                <div class="control-efecto">
-                    <label>Delay: <span id="valDelay">20</span>%</label>
-                    <input type="range" id="delaySlider" min="0" max="100" value="20">
-                </div>
-                <div class="control-efecto">
-                    <label>Flanger: <span id="valFlanger">0</span>%</label>
-                    <input type="range" id="flangerSlider" min="0" max="100" value="0">
-                </div>
-                <div class="control-efecto">
-                    <label>Wah-Wah: <span id="valWah">0</span>%</label>
-                    <input type="range" id="wahSlider" min="0" max="100" value="0">
-                </div>
-            </div>
-            <br>
-            <a id="botonDescargar" download="mi_tarareo.webm">
-                <button style="background-color: #7f8c8d;">⬇️ Descargar Audio Original</button>
-            </a>
+        <!-- Área Central: Piano Roll y Piano Virtual -->
+        <div class="editor-area">
+            <div id="pianoRollContainer"></div>
+            <div class="piano-container" id="pianoVirtual"></div>
         </div>
     </div>
 
     <!-- LIBRERÍAS -->
-    <script src="https://cdn.jsdelivr.net/npm/@spotify/basic-pitch@1.0.0/dist/basic-pitch.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/spessasynth_lib@4.4.7/dist/spessasynth_lib.js"></script>
-    
-    <!-- TU SCRIPT -->
+    <script src="https://cdn.jsdelivr.net/npm/konva@9.2.0/konva.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
