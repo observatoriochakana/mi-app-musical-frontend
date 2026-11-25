@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi App Musical Completa</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 15px; background-color: #f4f4f9; color: #333; }
+        .panel { border: 2px solid #333; padding: 15px; margin-bottom: 20px; border-radius: 8px; background-color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .panel h2 { margin-top: 0; color: #2c3e50; font-size: 1.2rem; }
+        input, select, button { padding: 10px; margin: 5px 0; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
+        button { cursor: pointer; background-color: #007bff; color: white; border: none; font-weight: bold; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        #zonaReproductor { display: none; margin-top: 20px; }
+        .fila-admin { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
+        .efectos-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 15px; }
+        .control-efecto { background: #ecf0f1; padding: 10px; border-radius: 5px; }
+        input[type="range"] { width: 100%; padding: 0; }
+        
+        @media (min-width: 768px) {
+            body { max-width: 900px; margin: 20px auto; }
+            .fila-admin { flex-direction: row; align-items: center; }
+            input, select, button { width: auto; }
+            input[type="text"], input[type="number"], input[type="file"] { flex-grow: 1; }
+            .efectos-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- PANEL DE ADMINISTRADOR -->
+    <div class="panel">
+        <h2>⚙️ Mi Panel (Administrador)</h2>
+        
+        <h3>1. Instrumentos Estándar</h3>
+        <div class="fila-admin">
+            <input type="text" id="nuevoNombre" placeholder="Ej. Mi Flauta">
+            <select id="nuevoSonido">
+                <option value="acoustic_grand_piano">Piano Acústico</option>
+                <option value="flute">Flauta</option>
+                <option value="violin">Violín</option>
+                <option value="trumpet">Trompeta</option>
+                <option value="acoustic_guitar_nylon">Guitarra Acústica</option>
+            </select>
+            <button id="botonAgregarInstrumento">➕ Agregar</button>
+        </div>
+
+        <h3>2. Instrumentos Étnicos (Archivos .sf2)</h3>
+        <div class="fila-admin">
+            <input type="text" id="nuevoNombreEtnicos" placeholder="Ej. Quena Real">
+            <input type="file" id="archivoSF2" accept=".sf2">
+            <input type="number" id="programaSF2" placeholder="Nº Programa (0-127)" value="0" style="width: 120px;">
+            <button id="botonCargarSF2" style="background-color: #8e44ad;">⬆️ Subir .sf2</button>
+        </div>
+
+        <h3>3. Estilos Musicales</h3>
+        <div class="fila-admin">
+            <input type="text" id="nuevoEstiloNombre" placeholder="Ej. Étnico Andino">
+            <input type="number" id="nuevoEstiloBPM" placeholder="BPM (ej. 90)" value="90">
+            <button id="botonAgregarEstilo" style="background-color: #e67e22;">➕ Agregar Estilo</button>
+        </div>
+        
+        <div id="listaInstrumentos" style="margin-top: 10px; font-weight: bold; color: #27ae60;"></div>
+        <div id="listaEstilos" style="margin-top: 10px; font-weight: bold; color: #d35400;"></div>
+    </div>
+
+    <!-- ESTUDIO DEL USUARIO -->
+    <div class="panel">
+        <h2>🎙️ Estudio de Grabación</h2>
+        
+        <!-- BOTONES DE GRABACIÓN -->
+        <button id="botonGrabar">🔴 Empezar a Grabar</button>
+        <button id="botonDetener" disabled>⏹️ Detener</button>
+        
+        <hr style="margin: 15px 0;">
+
+        <!-- NUEVA SECCIÓN: SUBIR ARCHIVO (Para cuando no hay micrófono) -->
+        <h3>📂 O sube un audio de prueba</h3>
+        <div class="fila-admin">
+            <input type="file" id="archivoAudio" accept="audio/*">
+            <button id="botonProcesarArchivo" style="background-color: #f39c12;">▶️ Procesar Audio</button>
+        </div>
+
+        <p id="estadoTexto" style="display: none; font-weight: bold; color: blue;"></p>
+        <hr>
+        
+        <div id="zonaReproductor">
+            <audio id="reproductorAudio" controls style="width: 100%;"></audio>
+            <br><br>
+            
+            <label>Estilo Musical:</label>
+            <select id="selectorEstiloUsuario"><option value="">-- Sin estilo --</option></select>
+
+            <label>Instrumento:</label>
+            <select id="selectorInstrumentoUsuario"></select>
+            <br><br>
+
+            <button id="botonReproducirMelodia">🎹 Reproducir con Efectos</button>
+            <button id="botonExportarAudio" style="background-color: #27ae60; display: none;">💾 Exportar Melodía (WAV)</button>
+            <br><br>
+
+            <!-- CONTROLES DE EFECTOS -->
+            <h3>🎛️ Efectos de Sonido</h3>
+            <div class="efectos-grid">
+                <div class="control-efecto">
+                    <label>Reverb: <span id="valReverb">30</span>%</label>
+                    <input type="range" id="reverbSlider" min="0" max="100" value="30">
+                </div>
+                <div class="control-efecto">
+                    <label>Delay: <span id="valDelay">20</span>%</label>
+                    <input type="range" id="delaySlider" min="0" max="100" value="20">
+                </div>
+                <div class="control-efecto">
+                    <label>Flanger: <span id="valFlanger">0</span>%</label>
+                    <input type="range" id="flangerSlider" min="0" max="100" value="0">
+                </div>
+                <div class="control-efecto">
+                    <label>Wah-Wah: <span id="valWah">0</span>%</label>
+                    <input type="range" id="wahSlider" min="0" max="100" value="0">
+                </div>
+            </div>
+            <br>
+            <a id="botonDescargar" download="mi_tarareo.webm">
+                <button style="background-color: #7f8c8d;">⬇️ Descargar Audio Original</button>
+            </a>
+        </div>
+    </div>
+
+    <!-- LIBRERÍAS -->
+    <script src="https://cdn.jsdelivr.net/npm/@spotify/basic-pitch@1.0.0/dist/basic-pitch.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/spessasynth_lib@4.4.7/dist/spessasynth_lib.js"></script>
+    
+    <!-- TU SCRIPT -->
+    <script src="script.js"></script>
+</body>
+</html>
