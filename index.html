@@ -41,36 +41,38 @@
         .editor-area { flex: 1; min-width: 0; display: flex; flex-direction: column; background-color: #0a0a0a; }
         #pianoRollContainer { flex: 1; width: 100%; overflow: auto; border-bottom: 1px solid var(--border-color); }
         
+        /* ESTILOS DEL PIANO CORREGIDOS PARA MÓVILES */
         .piano-container { 
-    height: 120px; 
-    background-color: var(--bg-panel); 
-    display: flex; 
-    justify-content: flex-start; /* Alinea desde la izquierda */
-    position: relative; 
-    border-top: 1px solid var(--border-color); 
-    flex: 0 0 auto; 
-    overflow-x: auto; 
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
-    padding: 0 10px; /* Un poco de margen */
-}
-.tecla-blanca { 
-    width: 45px; 
-    height: 100%; 
-    background: #f0f0f0; 
-    border: 1px solid #999; 
-    border-radius: 0 0 5px 5px; 
-    color: #333; 
-    display: flex; 
-    align-items: flex-end; 
-    justify-content: center; 
-    padding-bottom: 10px; 
-    box-sizing: border-box; 
-    cursor: pointer; 
-    user-select: none; 
-    flex-shrink: 0; /* Evita que las teclas se encojan */
-}
-.tecla-blanca:active { background: var(--accent-blue); color: white; }
+            height: 120px; 
+            background-color: var(--bg-panel); 
+            display: flex; 
+            justify-content: flex-start; 
+            position: relative; 
+            border-top: 1px solid var(--border-color); 
+            flex: 0 0 auto; 
+            overflow-x: auto; 
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch; 
+            padding: 0 10px;
+        }
+        .tecla-blanca { 
+            width: 45px; 
+            height: 100%; 
+            background: #f0f0f0; 
+            border: 1px solid #999; 
+            border-radius: 0 0 5px 5px; 
+            color: #333; 
+            display: flex; 
+            align-items: flex-end; 
+            justify-content: center; 
+            padding-bottom: 10px; 
+            box-sizing: border-box; 
+            cursor: pointer; 
+            user-select: none; 
+            flex-shrink: 0; 
+            touch-action: none; /* Evita el scroll al tocar la tecla */
+        }
+        .tecla-blanca:active { background: var(--accent-blue); color: white; }
         
         .status-text { font-size: 0.9rem; color: var(--accent-red); font-weight: bold; height: 20px; margin-top: 10px; }
         
@@ -82,17 +84,13 @@
     </style>
 </head>
 <body>
-    <!-- Barra Superior -->
     <div class="top-bar">
         <h1>🌌 EthnoSynth Studio</h1>
         <div style="font-size: 0.8rem; color: var(--text-muted);">Proyecto: Sin título</div>
     </div>
 
-    <!-- Layout Principal -->
     <div class="main-layout">
-        <!-- Panel Izquierdo: Controles -->
         <div class="sidebar">
-            <!-- Panel de Administración -->
             <div class="control-group">
                 <h3>⚙️ Panel de Administración</h3>
                 <input type="text" id="nuevoNombreEtnicos" placeholder="Nombre del instrumento" style="width: 90%; padding: 5px; margin-bottom: 5px; background: #111; color: white; border: 1px solid #444;">
@@ -101,7 +99,6 @@
                 <button id="botonCargarSF2" style="background-color: #8e44ad;">⬆️ Subir .sf2 al servidor</button>
             </div>
 
-            <!-- Grabación -->
             <div class="control-group">
                 <h3>Grabación</h3>
                 <button id="botonGrabarPiano" class="btn-record">🔴 Grabar (Piano)</button>
@@ -110,7 +107,6 @@
                 <div id="estadoGrabacion" class="status-text"></div>
             </div>
 
-            <!-- Instrumento -->
             <div class="control-group">
                 <h3>Instrumento</h3>
                 <select id="selectorInstrumentoUsuario" style="width: 100%; padding: 8px; background: var(--bg-dark); color: white; border: 1px solid var(--border-color); border-radius: 4px;">
@@ -118,7 +114,6 @@
                 </select>
             </div>
 
-            <!-- Efectos -->
             <div class="control-group">
                 <h3>Rack de Efectos</h3>
                 <label>Reverb: <span id="valReverb">30</span>%</label>
@@ -127,7 +122,6 @@
                 <input type="range" id="delaySlider" min="0" max="100" value="20">
             </div>
 
-            <!-- Acciones -->
             <div class="control-group">
                 <h3>Acciones</h3>
                 <button id="botonReproducirMelodia" class="btn-play">🎹 Reproducir Pista</button>
@@ -135,14 +129,12 @@
             </div>
         </div>
 
-        <!-- Área Central: Piano Roll y Piano Virtual -->
         <div class="editor-area">
             <div id="pianoRollContainer"></div>
             <div class="piano-container" id="pianoVirtual"></div>
         </div>
     </div>
 
-    <!-- LIBRERÍAS -->
     <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/spessasynth_lib@4.4.7/dist/spessasynth_lib.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/konva@9.2.0/konva.min.js"></script>

@@ -61,9 +61,7 @@ function openDB() {
 // ==========================================
 async function cargarInstrumentos() {
     selectorInstrumentoUsuario.innerHTML = '<option value="acoustic_grand_piano">Piano (Por defecto)</option>';
-    
     try {
-        // Hacemos la petición. Si Render está dormido, puede tardar ~50 seg.
         const res = await fetch('https://backend-musica-app.onrender.com/instrumentos');
         const archivos = await res.json();
         
@@ -74,13 +72,13 @@ async function cargarInstrumentos() {
                 option.innerText = nombre;
                 selectorInstrumentoUsuario.appendChild(option);
             });
-            estadoGrabacion.innerText = "Instrumentos cargados correctamente.";
+            estadoGrabacion.innerText = "Instrumentos cargados.";
         } else {
-            estadoGrabacion.innerText = "Servidor conectado, pero no hay instrumentos subidos.";
+            estadoGrabacion.innerText = "Servidor conectado, pero vacío.";
         }
     } catch (e) {
         console.error("Error al cargar instrumentos:", e);
-        estadoGrabacion.innerText = "Error: No se pudo conectar con Render. Intenta recargar en 30s.";
+        estadoGrabacion.innerText = "Error: Render no responde. Recarga en 30s.";
     }
 }
 cargarInstrumentos();
@@ -91,20 +89,20 @@ cargarInstrumentos();
 botonCargarSF2.addEventListener('click', async () => {
     const file = archivoSF2.files[0];
     if (!file) return alert("Selecciona un archivo .sf2");
-    if (!nuevoNombreEtnicos.value) return alert("Escribe un nombre para el instrumento");
+    if (!nuevoNombreEtnicos.value) return alert("Escribe un nombre");
 
     const formData = new FormData();
     formData.append('archivo', file);
 
-    estadoGrabacion.innerText = "Subiendo instrumento a Render...";
+    estadoGrabacion.innerText = "Subiendo instrumento...";
     try {
         const res = await fetch('https://backend-musica-app.onrender.com/subir-instrumento', {
             method: 'POST',
             body: formData
         });
         const data = await res.json();
-        estadoGrabacion.innerText = `¡${data.mensaje}! Refrescando lista...`;
-        cargarInstrumentos(); // Recargamos la lista
+        estadoGrabacion.innerText = `¡${data.mensaje}!`;
+        cargarInstrumentos(); 
     } catch (e) {
         console.error(e);
         estadoGrabacion.innerText = "Error al subir el archivo.";
@@ -205,7 +203,7 @@ async function tocarInstrumento(pitchMidi, duracion = 0.5) {
 
         } catch (error) {
             console.error("Error con SF2:", error);
-            estadoGrabacion.innerText = "Error al cargar el instrumento.";
+            estadoGrabacion.innerText = "Error al cargar instrumento.";
         }
     }
 }
@@ -267,11 +265,12 @@ function inicializarPianoVirtual() {
             const tecla = document.createElement('div');
             tecla.className = 'tecla-blanca';
             tecla.innerText = i;
-            tecla.addEventListener('mousedown', () => presionarTecla(i));
-            tecla.addEventListener('mouseup', () => soltarTecla(i));
-            tecla.addEventListener('mouseleave', () => soltarTecla(i));
-            tecla.addEventListener('touchstart', (e) => { e.preventDefault(); presionarTecla(i); });
-            tecla.addEventListener('touchend', (e) => { e.preventDefault(); soltarTecla(i); });
+            
+            // Eventos táctiles y de ratón unificados
+            tecla.addEventListener('pointerdown', (e) => { e.preventDefault(); presionarTecla(i); });
+            tecla.addEventListener('pointerup', (e) => { e.preventDefault(); soltarTecla(i); });
+            tecla.addEventListener('pointerleave', (e) => { e.preventDefault(); soltarTecla(i); });
+            
             pianoVirtualContainer.appendChild(tecla);
         }
     }
