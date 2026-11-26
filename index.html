@@ -41,9 +41,36 @@
         .editor-area { flex: 1; min-width: 0; display: flex; flex-direction: column; background-color: #0a0a0a; }
         #pianoRollContainer { flex: 1; width: 100%; overflow: auto; border-bottom: 1px solid var(--border-color); }
         
-        .piano-container { height: 120px; background-color: var(--bg-panel); display: flex; justify-content: center; position: relative; border-top: 1px solid var(--border-color); flex: 0 0 auto; overflow-x: auto; }
-        .tecla-blanca { width: 45px; height: 100%; background: #f0f0f0; border: 1px solid #999; border-radius: 0 0 5px 5px; color: #333; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 10px; box-sizing: border-box; cursor: pointer; user-select: none; flex-shrink: 0; }
-        .tecla-blanca:active { background: var(--accent-blue); color: white; }
+        .piano-container { 
+    height: 120px; 
+    background-color: var(--bg-panel); 
+    display: flex; 
+    justify-content: flex-start; /* Alinea desde la izquierda */
+    position: relative; 
+    border-top: 1px solid var(--border-color); 
+    flex: 0 0 auto; 
+    overflow-x: auto; 
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
+    padding: 0 10px; /* Un poco de margen */
+}
+.tecla-blanca { 
+    width: 45px; 
+    height: 100%; 
+    background: #f0f0f0; 
+    border: 1px solid #999; 
+    border-radius: 0 0 5px 5px; 
+    color: #333; 
+    display: flex; 
+    align-items: flex-end; 
+    justify-content: center; 
+    padding-bottom: 10px; 
+    box-sizing: border-box; 
+    cursor: pointer; 
+    user-select: none; 
+    flex-shrink: 0; /* Evita que las teclas se encojan */
+}
+.tecla-blanca:active { background: var(--accent-blue); color: white; }
         
         .status-text { font-size: 0.9rem; color: var(--accent-red); font-weight: bold; height: 20px; margin-top: 10px; }
         
