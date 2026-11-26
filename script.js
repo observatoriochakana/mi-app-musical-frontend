@@ -35,6 +35,24 @@ let konvaLayer = null;
 let audioContextGlobal = null;
 let masterGain = null;
 let efectoEntrada = null;
+let synthSpessa = null; // Para los .sf2
+
+// ==========================================
+// FUNCIÓN PARA LEER LOS ARCHIVOS .SF2 DEL NAVEGADOR
+// ==========================================
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('MiAppMusicalDB', 1);
+        request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('sf2files')) {
+                db.createObjectStore('sf2files', { keyPath: 'nombre' });
+            }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
 
 // ==========================================
 // 2. CARGAR INSTRUMENTOS DESDE RENDER
@@ -45,8 +63,6 @@ async function cargarInstrumentos() {
     try {
         const res = await fetch('https://backend-musica-app.onrender.com/instrumentos');
         const archivos = await res.json();
-        
-        console.log("Archivos recibidos:", archivos);
         
         if (archivos.length === 0) {
             console.log("No hay instrumentos en el servidor.");
@@ -59,6 +75,7 @@ async function cargarInstrumentos() {
             option.innerText = nombre;
             selectorInstrumentoUsuario.appendChild(option);
         });
+        console.log("Instrumentos cargados:", archivos);
     } catch (e) {
         console.error("Error al cargar instrumentos:", e);
         estadoGrabacion.innerText = "Error: No se pudieron cargar los instrumentos de Render.";
@@ -113,7 +130,67 @@ function inicializarMotorDeAudio() {
 }
 
 // ==========================================
-// 4. PIANO ROLL (Konva)
+// 4. FUNCIÓN PARA TOCAR UNA NOTA CON EL INSTRUMENTO ELEGIDO
+// ==========================================
+async function tocarInstrumento(pitchMidi, duracion = 0.5) {
+    if (!audioContextGlobal) inicializarMotorDeAudio();
+    if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
+
+    const instrumentoSeleccionado = selectorInstrumentoUsuario.value;
+
+    // Si es el piano por defecto
+    if (instrumentoSeleccionado === 'acoustic_grand_piano' || !instrumentoSeleccionado.endsWith('.sf2')) {
+        Soundfont.instrument(audioContextGlobal, 'acoustic_grand_piano').then(instrumento => {
+            instrumento.play(pitchMidi, audioContextGlobal.currentTime, { duration: duracion, destination: efectoEntrada });
+        });
+    } 
+    // Si es un archivo .sf2 (instrumento étnico)
+    else {
+        try {
+            // 1. Buscamos el archivo en IndexedDB o lo descargamos de Render
+            let data;
+            const db = await openDB();
+            data = await db.transaction('sf2files', 'readonly').objectStore('sf2files').get(instrumentoSeleccionado);
+            
+            if (!data || !data.buffer) {
+                estadoGrabacion.innerText = `Descargando ${instrumentoSeleccionado}...`;
+                const respuesta = await fetch(`https://backend-musica-app.onrender.com/instrumentos/${instrumentoSeleccionado}`);
+                if (!respuesta.ok) throw new Error("Error al descargar");
+                const arrayBuffer = await respuesta.arrayBuffer();
+                
+                const txWrite = db.transaction('sf2files', 'readwrite');
+                await txWrite.objectStore('sf2files').put({ nombre: instrumentoSeleccionado, buffer: arrayBuffer });
+                data = { buffer: arrayBuffer };
+            }
+
+            // 2. Cargamos SpessaSynth si es necesario
+            if (!synthSpessa) {
+                await audioContextGlobal.audioWorklet.addModule("https://cdn.jsdelivr.net/npm/spessasynth_lib@4.4.7/dist/spessasynth_processor.min.js");
+                synthSpessa = new WorkletSynthesizer(audioContextGlobal);
+                synthSpessa.connect(efectoEntrada);
+            }
+
+            // 3. Cargamos el banco de sonido si es nuevo
+            if (synthSpessa.soundBankManager.soundBankCount === 0) {
+                await synthSpessa.soundBankManager.addSoundBank(data.buffer, "main");
+                await synthSpessa.isReady;
+            }
+
+            // 4. Tocamos la nota
+            synthSpessa.noteOn(0, pitchMidi, 127);
+            setTimeout(() => {
+                if (synthSpessa) synthSpessa.noteOff(0, pitchMidi);
+            }, duracion * 1000);
+
+        } catch (error) {
+            console.error("Error con SF2:", error);
+            estadoGrabacion.innerText = "Error al cargar el instrumento.";
+        }
+    }
+}
+
+// ==========================================
+// 5. PIANO ROLL (Konva)
 // ==========================================
 function inicializarPianoRoll() {
     const container = document.getElementById('pianoRollContainer');
@@ -155,7 +232,6 @@ function inicializarPianoRoll() {
 function actualizarNotasEnPianoRoll() {
     if (!konvaLayer) return;
     
-    // Borrar solo las notas viejas (no el fondo)
     konvaLayer.find('.nota-rect').forEach(nodo => nodo.destroy());
     
     notasDetectadas.forEach((nota, index) => {
@@ -188,7 +264,7 @@ function actualizarNotasEnPianoRoll() {
 }
 
 // ==========================================
-// 5. PIANO VIRTUAL Y GRABACIÓN
+// 6. PIANO VIRTUAL Y GRABACIÓN
 // ==========================================
 function inicializarPianoVirtual() {
     pianoVirtualContainer.innerHTML = '';
@@ -219,9 +295,8 @@ async function presionarTecla(pitchMidi) {
     const tiempoActual = (Date.now() - tiempoInicioGrabacion) / 1000;
     notasActivas[pitchMidi] = { inicio: tiempoActual, pitch: pitchMidi };
 
-    Soundfont.instrument(audioContextGlobal, 'acoustic_grand_piano').then(instrumento => {
-        instrumento.play(pitchMidi, audioContextGlobal.currentTime, { duration: 0.5, destination: efectoEntrada });
-    });
+    // Aquí llamamos a la función maestra con el instrumento elegido
+    tocarInstrumento(pitchMidi, 0.5);
 }
 
 function soltarTecla(pitchMidi) {
@@ -235,7 +310,7 @@ function soltarTecla(pitchMidi) {
 }
 
 // ==========================================
-// 6. BOTONES DE CONTROL
+// 7. BOTONES DE CONTROL
 // ==========================================
 botonGrabarPiano.addEventListener('click', () => {
     grabando = true;
@@ -259,17 +334,18 @@ botonReproducirMelodia.addEventListener('click', async () => {
     inicializarMotorDeAudio();
     if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
 
-    const instrumento = await Soundfont.instrument(audioContextGlobal, 'acoustic_grand_piano');
     const notasOrdenadas = [...notasDetectadas].sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
     
+    // Tocamos cada nota con el instrumento elegido
     notasOrdenadas.forEach(nota => {
-        const tiempoInicio = audioContextGlobal.currentTime + nota.startTimeSeconds + 0.1;
-        instrumento.play(nota.pitchMidi, tiempoInicio, { duration: nota.durationSeconds, destination: efectoEntrada });
+        setTimeout(() => {
+            tocarInstrumento(nota.pitchMidi, nota.durationSeconds);
+        }, nota.startTimeSeconds * 1000);
     });
 });
 
 // ==========================================
-// 7. INICIALIZACIÓN FINAL
+// 8. INICIALIZACIÓN FINAL
 // ==========================================
 inicializarPianoVirtual();
 inicializarPianoRoll();
