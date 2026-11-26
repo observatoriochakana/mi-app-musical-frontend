@@ -15,21 +15,23 @@ const flangerSlider = document.getElementById('flangerSlider');
 const wahSlider = document.getElementById('wahSlider');
 const selectorInstrumentoUsuario = document.getElementById('selectorInstrumentoUsuario');
 
+// Variables de Estado
 let notasDetectadas = [];
 let grabando = false;
 let tiempoInicioGrabacion = 0;
 let notasActivas = {}; 
 
+// Constantes del Piano
 const inicioMidi = 48; 
 const finMidi = 72;    
 const altoFila = 20;
 const pxPorSegundo = 100;
 
-// Variables para Konva (el lienzo)
+// Variables de Konva
 let konvaStage = null;
 let konvaLayer = null;
 
-// Variables para el motor de audio
+// Variables de Audio
 let audioContextGlobal = null;
 let masterGain = null;
 let efectoEntrada = null;
@@ -38,14 +40,13 @@ let efectoEntrada = null;
 // 2. CARGAR INSTRUMENTOS DESDE RENDER
 // ==========================================
 async function cargarInstrumentos() {
-    // Ponemos la opción por defecto
     selectorInstrumentoUsuario.innerHTML = '<option value="acoustic_grand_piano">Piano (Por defecto)</option>';
     
     try {
         const res = await fetch('https://backend-musica-app.onrender.com/instrumentos');
         const archivos = await res.json();
         
-        console.log("Archivos recibidos:", archivos); // Para depurar
+        console.log("Archivos recibidos:", archivos);
         
         if (archivos.length === 0) {
             console.log("No hay instrumentos en el servidor.");
@@ -63,11 +64,10 @@ async function cargarInstrumentos() {
         estadoGrabacion.innerText = "Error: No se pudieron cargar los instrumentos de Render.";
     }
 }
-// Llamamos a la función al iniciar
 cargarInstrumentos();
 
 // ==========================================
-// 3. INICIALIZAR MOTOR DE AUDIO Y EFECTOS
+// 3. MOTOR DE AUDIO Y EFECTOS
 // ==========================================
 function inicializarMotorDeAudio() {
     if (audioContextGlobal) return;
@@ -113,7 +113,7 @@ function inicializarMotorDeAudio() {
 }
 
 // ==========================================
-// 4. PIANO ROLL (Optimizado)
+// 4. PIANO ROLL (Konva)
 // ==========================================
 function inicializarPianoRoll() {
     const container = document.getElementById('pianoRollContainer');
@@ -155,6 +155,7 @@ function inicializarPianoRoll() {
 function actualizarNotasEnPianoRoll() {
     if (!konvaLayer) return;
     
+    // Borrar solo las notas viejas (no el fondo)
     konvaLayer.find('.nota-rect').forEach(nodo => nodo.destroy());
     
     notasDetectadas.forEach((nota, index) => {
@@ -234,7 +235,7 @@ function soltarTecla(pitchMidi) {
 }
 
 // ==========================================
-// 6. BOTONES DE GRABACIÓN Y REPRODUCCIÓN
+// 6. BOTONES DE CONTROL
 // ==========================================
 botonGrabarPiano.addEventListener('click', () => {
     grabando = true;
@@ -258,7 +259,6 @@ botonReproducirMelodia.addEventListener('click', async () => {
     inicializarMotorDeAudio();
     if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
 
-    // Aquí luego conectaremos SpessaSynth para el instrumento seleccionado
     const instrumento = await Soundfont.instrument(audioContextGlobal, 'acoustic_grand_piano');
     const notasOrdenadas = [...notasDetectadas].sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
     
@@ -269,7 +269,7 @@ botonReproducirMelodia.addEventListener('click', async () => {
 });
 
 // ==========================================
-// 7. INICIALIZAR TODO
+// 7. INICIALIZACIÓN FINAL
 // ==========================================
 inicializarPianoVirtual();
 inicializarPianoRoll();
