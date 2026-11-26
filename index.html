@@ -17,52 +17,39 @@
             --accent-orange: #e67e22;
             --border-color: #333;
         }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: var(--bg-dark); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; background-color: var(--bg-dark); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* Barra Superior */
-        .top-bar { background-color: var(--bg-panel); padding: 10px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .top-bar { background-color: var(--bg-panel); padding: 10px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex: 0 0 auto; }
         .top-bar h1 { margin: 0; font-size: 1.2rem; color: var(--accent-blue); letter-spacing: 1px; }
         
-        /* Layout Principal */
-        .main-layout { display: flex; flex: 1; overflow: hidden; width: 100%; height: 100vh; }
-.sidebar { flex: 0 0 300px; /* Ancho fijo de 300px */ }
-.editor-area { flex: 1; min-width: 0; /* Permite que el editor se encoja */ }
+        .main-layout { display: flex; flex: 1; overflow: hidden; width: 100%; }
         
-        /* Panel Izquierdo (Controles) */
-        .sidebar { width: 300px; background-color: var(--bg-panel); border-right: 1px solid var(--border-color); padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+        .sidebar { flex: 0 0 300px; background-color: var(--bg-panel); border-right: 1px solid var(--border-color); padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; z-index: 10; }
         .control-group { background-color: var(--bg-panel-light); padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); }
         .control-group h3 { margin: 0 0 10px 0; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; }
         
-        /* Controles de Entrada */
         button { cursor: pointer; background-color: var(--bg-panel-light); color: var(--text-main); border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 4px; font-weight: bold; transition: all 0.2s; width: 100%; margin-bottom: 5px; }
         button:hover { background-color: #3d3d3d; }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-record { background-color: var(--accent-red); border-color: var(--accent-red); }
-        .btn-record:hover { background-color: #c0392b; }
         .btn-play { background-color: var(--accent-green); border-color: var(--accent-green); color: white; }
         .btn-export { background-color: var(--accent-blue); border-color: var(--accent-blue); color: white; }
         
-        /* Deslizadores */
         input[type="range"] { width: 100%; margin: 5px 0; accent-color: var(--accent-blue); }
         label { font-size: 0.85rem; color: var(--text-muted); display: block; margin-top: 5px; }
         
-        /* Área del Piano Roll */
-        .editor-area { flex: 1; display: flex; flex-direction: column; background-color: #0a0a0a; }
+        .editor-area { flex: 1; min-width: 0; display: flex; flex-direction: column; background-color: #0a0a0a; }
         #pianoRollContainer { flex: 1; width: 100%; overflow: auto; border-bottom: 1px solid var(--border-color); }
         
-        /* Piano Virtual */
-        .piano-container { height: 120px; background-color: var(--bg-panel); display: flex; justify-content: center; position: relative; border-top: 1px solid var(--border-color); }
-        .tecla-blanca { width: 45px; height: 100%; background: #f0f0f0; border: 1px solid #999; border-radius: 0 0 5px 5px; color: #333; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 10px; box-sizing: border-box; cursor: pointer; user-select: none; }
+        .piano-container { height: 120px; background-color: var(--bg-panel); display: flex; justify-content: center; position: relative; border-top: 1px solid var(--border-color); flex: 0 0 auto; overflow-x: auto; }
+        .tecla-blanca { width: 45px; height: 100%; background: #f0f0f0; border: 1px solid #999; border-radius: 0 0 5px 5px; color: #333; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 10px; box-sizing: border-box; cursor: pointer; user-select: none; flex-shrink: 0; }
         .tecla-blanca:active { background: var(--accent-blue); color: white; }
-        .tecla-negra { width: 30px; height: 60%; background: #222; border: 1px solid #000; border-radius: 0 0 3px 3px; color: #aaa; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 5px; box-sizing: border-box; position: absolute; cursor: pointer; z-index: 2; user-select: none; }
-        .tecla-negra:active { background: var(--accent-blue); }
         
-        /* Badges y Textos */
         .status-text { font-size: 0.9rem; color: var(--accent-red); font-weight: bold; height: 20px; margin-top: 10px; }
         
         @media (max-width: 768px) {
             .main-layout { flex-direction: column; }
-            .sidebar { width: 100%; height: 40%; border-right: none; border-bottom: 1px solid var(--border-color); }
+            .sidebar { flex: 0 0 auto; max-height: 40%; border-right: none; border-bottom: 1px solid var(--border-color); }
             .tecla-blanca { width: 35px; }
         }
     </style>
@@ -76,13 +63,21 @@
 
     <!-- Layout Principal -->
     <div class="main-layout">
-        <!-- Panel Izquierdo: Controles y Efectos -->
+        <!-- Panel Izquierdo: Controles -->
         <div class="sidebar">
+            <!-- Panel de Administración -->
+            <div class="control-group">
+                <h3>⚙️ Panel de Administración</h3>
+                <input type="text" id="nuevoNombreEtnicos" placeholder="Nombre del instrumento" style="width: 90%; padding: 5px; margin-bottom: 5px; background: #111; color: white; border: 1px solid #444;">
+                <input type="file" id="archivoSF2" accept=".sf2" style="width: 100%; margin-bottom: 5px; color: white;">
+                <input type="number" id="programaSF2" placeholder="Programa (0)" value="0" style="width: 90%; padding: 5px; margin-bottom: 5px; background: #111; color: white; border: 1px solid #444;">
+                <button id="botonCargarSF2" style="background-color: #8e44ad;">⬆️ Subir .sf2 al servidor</button>
+            </div>
+
             <!-- Grabación -->
             <div class="control-group">
                 <h3>Grabación</h3>
                 <button id="botonGrabarPiano" class="btn-record">🔴 Grabar (Piano)</button>
-                <button id="botonGrabarMicro" style="background-color: var(--accent-orange); border-color: var(--accent-orange);">🎤 Grabar (Micrófono)</button>
                 <button id="botonDetenerGrabacion" disabled>⏹️ Detener</button>
                 <button id="botonLimpiar" style="margin-top: 10px; background: transparent; border: 1px solid #555;">🗑️ Limpiar Pista</button>
                 <div id="estadoGrabacion" class="status-text"></div>
@@ -93,7 +88,6 @@
                 <h3>Instrumento</h3>
                 <select id="selectorInstrumentoUsuario" style="width: 100%; padding: 8px; background: var(--bg-dark); color: white; border: 1px solid var(--border-color); border-radius: 4px;">
                     <option value="acoustic_grand_piano">Piano</option>
-                    <!-- Aquí se cargarán los .sf2 -->
                 </select>
             </div>
 
@@ -102,15 +96,8 @@
                 <h3>Rack de Efectos</h3>
                 <label>Reverb: <span id="valReverb">30</span>%</label>
                 <input type="range" id="reverbSlider" min="0" max="100" value="30">
-                
                 <label>Delay: <span id="valDelay">20</span>%</label>
                 <input type="range" id="delaySlider" min="0" max="100" value="20">
-                
-                <label>Flanger: <span id="valFlanger">0</span>%</label>
-                <input type="range" id="flangerSlider" min="0" max="100" value="0">
-                
-                <label>Wah-Wah: <span id="valWah">0</span>%</label>
-                <input type="range" id="wahSlider" min="0" max="100" value="0">
             </div>
 
             <!-- Acciones -->
