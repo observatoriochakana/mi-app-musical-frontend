@@ -35,7 +35,39 @@ let masterGain = null;
 let efectoEntrada = null;
 
 // ==========================================
-// 2. INICIALIZAR MOTOR DE AUDIO Y EFECTOS
+// 2. CARGAR INSTRUMENTOS DESDE RENDER
+// ==========================================
+async function cargarInstrumentos() {
+    // Ponemos la opción por defecto
+    selectorInstrumentoUsuario.innerHTML = '<option value="acoustic_grand_piano">Piano (Por defecto)</option>';
+    
+    try {
+        const res = await fetch('https://backend-musica-app.onrender.com/instrumentos');
+        const archivos = await res.json();
+        
+        console.log("Archivos recibidos:", archivos); // Para depurar
+        
+        if (archivos.length === 0) {
+            console.log("No hay instrumentos en el servidor.");
+            return;
+        }
+
+        archivos.forEach(nombre => {
+            const option = document.createElement('option');
+            option.value = nombre;
+            option.innerText = nombre;
+            selectorInstrumentoUsuario.appendChild(option);
+        });
+    } catch (e) {
+        console.error("Error al cargar instrumentos:", e);
+        estadoGrabacion.innerText = "Error: No se pudieron cargar los instrumentos de Render.";
+    }
+}
+// Llamamos a la función al iniciar
+cargarInstrumentos();
+
+// ==========================================
+// 3. INICIALIZAR MOTOR DE AUDIO Y EFECTOS
 // ==========================================
 function inicializarMotorDeAudio() {
     if (audioContextGlobal) return;
@@ -81,13 +113,12 @@ function inicializarMotorDeAudio() {
 }
 
 // ==========================================
-// 3. CREAR EL LIENZO (Solo se dibuja la primera vez)
+// 4. PIANO ROLL (Optimizado)
 // ==========================================
 function inicializarPianoRoll() {
     const container = document.getElementById('pianoRollContainer');
     if (!container) return;
     
-    // Si ya existe un lienzo, lo borramos para empezar de cero
     if (konvaStage) konvaStage.destroy(); 
     
     konvaStage = new Konva.Stage({
@@ -99,7 +130,6 @@ function inicializarPianoRoll() {
     konvaLayer = new Konva.Layer();
     konvaStage.add(konvaLayer);
     
-    // Dibujar el fondo de la cuadrícula (Esto solo pasa UNA VEZ)
     for (let i = 0; i <= (finMidi - inicioMidi); i++) {
         const y = i * altoFila;
         const esTeclaNegra = [1, 3, 6, 8, 10].includes((finMidi - i) % 12);
@@ -111,7 +141,6 @@ function inicializarPianoRoll() {
         konvaLayer.add(rect);
     }
     
-    // Evento: Doble clic para crear una nota
     konvaStage.on('dblclick dbltap', (e) => {
         const pointerPos = konvaStage.getPointerPosition();
         const tiempo = Math.round(pointerPos.x / pxPorSegundo * 10) / 10;
@@ -123,16 +152,11 @@ function inicializarPianoRoll() {
     konvaLayer.draw();
 }
 
-// ==========================================
-// 4. ACTUALIZAR NOTAS (Súper rápido)
-// ==========================================
 function actualizarNotasEnPianoRoll() {
     if (!konvaLayer) return;
     
-    // Borramos solo las notas viejas (los rectángulos rojos)
     konvaLayer.find('.nota-rect').forEach(nodo => nodo.destroy());
     
-    // Volvemos a dibujar las notas actuales
     notasDetectadas.forEach((nota, index) => {
         const x = nota.startTimeSeconds * pxPorSegundo;
         const ancho = Math.max(10, nota.durationSeconds * pxPorSegundo);
@@ -142,7 +166,7 @@ function actualizarNotasEnPianoRoll() {
             x: x, y: y, width: ancho, height: altoFila - 2,
             fill: '#e74c3c', cornerRadius: 3, opacity: 0.9,
             draggable: true,
-            name: 'nota-rect' // Identificador para poder borrarlas
+            name: 'nota-rect'
         });
         
         rectNota.on('click', (e) => {
@@ -163,7 +187,7 @@ function actualizarNotasEnPianoRoll() {
 }
 
 // ==========================================
-// 5. PIANO VIRTUAL
+// 5. PIANO VIRTUAL Y GRABACIÓN
 // ==========================================
 function inicializarPianoVirtual() {
     pianoVirtualContainer.innerHTML = '';
@@ -194,7 +218,6 @@ async function presionarTecla(pitchMidi) {
     const tiempoActual = (Date.now() - tiempoInicioGrabacion) / 1000;
     notasActivas[pitchMidi] = { inicio: tiempoActual, pitch: pitchMidi };
 
-    // Sonido simple mientras grabamos
     Soundfont.instrument(audioContextGlobal, 'acoustic_grand_piano').then(instrumento => {
         instrumento.play(pitchMidi, audioContextGlobal.currentTime, { duration: 0.5, destination: efectoEntrada });
     });
@@ -211,7 +234,7 @@ function soltarTecla(pitchMidi) {
 }
 
 // ==========================================
-// 6. BOTONES DE GRABACIÓN
+// 6. BOTONES DE GRABACIÓN Y REPRODUCCIÓN
 // ==========================================
 botonGrabarPiano.addEventListener('click', () => {
     grabando = true;
@@ -230,14 +253,12 @@ botonLimpiar.addEventListener('click', () => {
     if (confirm("¿Borrar todas las notas?")) { notasDetectadas = []; actualizarNotasEnPianoRoll(); }
 });
 
-// ==========================================
-// 7. REPRODUCIR LA PISTA
-// ==========================================
 botonReproducirMelodia.addEventListener('click', async () => {
     if (notasDetectadas.length === 0) return alert("Dibuja o graba algunas notas primero.");
     inicializarMotorDeAudio();
     if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
 
+    // Aquí luego conectaremos SpessaSynth para el instrumento seleccionado
     const instrumento = await Soundfont.instrument(audioContextGlobal, 'acoustic_grand_piano');
     const notasOrdenadas = [...notasDetectadas].sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
     
@@ -248,7 +269,7 @@ botonReproducirMelodia.addEventListener('click', async () => {
 });
 
 // ==========================================
-// 8. INICIALIZAR TODO
+// 7. INICIALIZAR TODO
 // ==========================================
 inicializarPianoVirtual();
 inicializarPianoRoll();
