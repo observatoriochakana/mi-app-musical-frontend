@@ -1,154 +1,465 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EthnoReaper Studio v1.4</title>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <style>
-        :root {
-            --bg-dark: #121316;
-            --bg-panel: #1a1c22;
-            --bg-track: #23262f;
-            --primary: #ea4335;
-            --text-main: #f5f6f8;
-            --text-muted: #9ea2ae;
-            --accent-glow: rgba(234, 67, 53, 0.15);
-        }
-        body {
-            margin: 0;
-            font-family: system-ui, -apple-system, sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-        }
-        .studio-container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-        .top-bar {
-            background-color: var(--bg-panel);
-            padding: 12px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid #2d313c;
-        }
-        .logo-area {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 600;
-            color: var(--primary);
-        }
-        .strip-group {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .warm-select {
-            background-color: var(--bg-track);
-            color: var(--text-main);
-            border: 1px solid #3c4252;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        .daw-workspace {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-        }
-        .tracks-panel {
-            width: 280px;
-            background-color: var(--bg-panel);
-            border-right: 1px solid #2d313c;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .track-item {
-            background-color: var(--bg-track);
-            border-radius: 8px;
-            padding: 12px;
-            border-left: 4px solid var(--primary);
-        }
-        .track-header {
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 8px;
-        }
-        .track-controls {
-            display: flex;
-            gap: 6px;
-        }
-        .btn-secondary-warm {
-            background: #2d313c;
-            color: var(--text-main);
-            border: none;
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-size: 11px;
-            cursor: pointer;
-        }
-        .btn-secondary-warm:hover {
-            background: #3c4252;
-        }
-        .timeline-canvas {
-            flex: 1;
-            background-color: var(--bg-dark);
-            position: relative;
-            overflow: hidden;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EthnoReaper Studio — DAW Ultraliviano &amp; Estudio Tiny Desk</title>
+  <link rel="preconnect" href="https://googleapis.com">
+  <link rel="preconnect" href="https://gstatic.com" crossorigin>
+  <link href="https://googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://unpkg.com"></script>
+  <script src="https://jsdelivr.net"></script>
 </head>
 <body>
-    <div class="studio-container">
-        <header class="top-bar">
-            <div class="logo-area">
-                <span class="material-icons">graphic_eq</span>
-                <span>EthnoReaper Studio</span>
-            </div>
-            <div class="strip-group">
-                <label>Escala / Microtonalidad:</label>
-                <select id="scale-select" class="warm-select">
-                    <option value="Cromática">Cromática (12 notas)</option>
-                    <option value="Pentatónica Menor">Pentatónica Menor (Andina)</option>
-                    <option value="Pentatónica Mayor">Pentatónica Mayor</option>
-                    <option value="Mixolidia">Mixolidia (Funk Étnico)</option>
-                    <option value="Dórica">Dórica (Ambient / Dub)</option>
-                    <option value="Frigia">Frigia (Trance / Ritual)</option>
-                    <option value="Maqam Hijaz">Maqam Hijaz (Árabe / Microtonal)</option>
-                    <option value="Raga Bhairav">Raga Bhairav (India)</option>
-                    <option value="Pelog">Pelog (Gamelán / Indonesia)</option>
-                </select>
-            </div>
-        </header>
-
-        <main class="daw-workspace">
-            <aside class="tracks-panel">
-                <div class="panel-title">Pistas (TCP)</div>
-                <div class="track-item">
-                    <div class="track-header">🪕 Instrumento Étnico</div>
-                    <div class="track-controls">
-                        <button class="btn-secondary-warm">Mute</button>
-                        <button class="btn-secondary-warm">Solo</button>
-                    </div>
-                </div>
-                <div class="track-item">
-                    <div class="track-header">🎤 Toma Acústica / Micrófono</div>
-                    <div class="track-controls">
-                        <button class="btn-secondary-warm">Mute</button>
-                        <button class="btn-secondary-warm">Solo</button>
-                    </div>
-                </div>
-            </aside>
-            <section class="timeline-canvas">
-                <!-- Regiones de audio y secuenciador -->
-            </section>
-        </main>
+  <header class="top-navbar">
+    <div class="brand-area" onclick="switchView('landing')">
+      <span class="brand-badge">REAPER-CORE</span>
+      <h1 class="brand-title">EthnoReaper <span class="accent-warm">Studio</span></h1>
     </div>
+
+    <nav class="main-nav">
+      <button class="nav-btn active" data-view="landing" onclick="switchView('landing')" data-i18n="nav_home">Inicio / Tiny Desk</button>
+      <button class="nav-btn" data-view="studio" onclick="switchView('studio')" data-i18n="nav_studio">Estudio DAW</button>
+      <button class="nav-btn" data-view="admin" onclick="switchView('admin')" data-i18n="nav_admin">Mi Panel</button>
+    </nav>
+
+    <div class="nav-actions">
+      <div id="backend-status" class="status-pill status-checking" title="Estado del servidor Render">
+        <span class="dot"></span> <span id="backend-status-text">Conectando...</span>
+      </div>
+      <select id="lang-selector" class="warm-select" onchange="setLanguage(this.value)" aria-label="Idioma">
+        <option value="es">ES</option>
+        <option value="en">EN</option>
+        <option value="fr">FR</option>
+      </select>
+    </div>
+  </header>
+
+  <main id="view-landing" class="view-section active">
+    <section class="hero-tinydesk">
+      <div class="hero-content">
+        <span class="hero-tag" data-i18n="hero_tag">SALA DE ENSAYO ÍNTIMA • LATENCIA CERO</span>
+        <h2 data-i18n="hero_title">Graba en Vivo. <span class="accent-warm">Fusión Orgánica.</span></h2>
+        <p data-i18n="hero_subtitle">Estación de trabajo ultraliviana inspirada en la eficiencia de REAPER y la calidez de un concierto acústico Tiny Desk. Explora 30 instrumentos étnicos, microtonalidad y producción multipista de audio y video en tu navegador.</p>
+        <div class="hero-buttons">
+          <button class="btn-primary-warm" onclick="switchView('studio')" data-i18n="hero_cta_studio">Abrir Estudio DAW</button>
+          <button class="btn-secondary-warm" onclick="toggleShortcutsModal(true)" data-i18n="hero_cta_shortcuts">Atajos REAPER (?)</button>
+        </div>
+      </div>
+
+      <div class="hero-presets-card">
+        <h3 data-i18n="quick_jam_title">Plantillas de Sesión Instantánea</h3>
+        <p class="muted-text" data-i18n="quick_jam_desc">Elige un estilo para cargar pistas, BPM, escala y efectos automáticamente:</p>
+        <div id="landing-styles-grid" class="styles-mini-grid"></div>
+      </div>
+    </section>
+
+    <section class="catalog-explorer">
+      <div class="section-header-row">
+        <div>
+          <h3 data-i18n="catalog_title">Catálogo de Instrumentos Étnicos y Aborígenes</h3>
+          <p class="muted-text" data-i18n="catalog_subtitle">Haz clic en "Audicionar" para escuchar la nota raíz o "Enviar al Estudio" para crear una pista.</p>
+        </div>
+        <div class="catalog-filters">
+          <input type="text" id="catalog-search" class="warm-input" placeholder="Buscar Trompe, Quena, Didgeridoo..." oninput="renderCatalog()" />
+          <select id="catalog-category-filter" class="warm-select" onchange="renderCatalog()">
+            <option value="ALL">Todas las categorías</option>
+            <option value="Aborígenes">Aborígenes</option>
+            <option value="Étnicos">Étnicos</option>
+            <option value="Tradicionales">Tradicionales</option>
+          </select>
+        </div>
+      </div>
+      <div id="instruments-grid" class="instruments-grid"></div>
+    </section>
+    <section class="jam-guide-section">
+      <h3 data-i18n="guide_title">Guía Rápida: Jam Room en 3 Pasos</h3>
+      <div class="guide-cards">
+        <div class="guide-card">
+          <span class="step-num">01</span>
+          <h4 data-i18n="guide_step1_title">Configura la Sala y Escala</h4>
+          <p data-i18n="guide_step1_desc">Define el BPM, activa el metrónomo (Tecla C) y selecciona tu escala étnica o microtonal en la barra superior.</p>
+        </div>
+        <div class="guide-card">
+          <span class="step-num">02</span>
+          <h4 data-i18n="guide_step2_title">Graba Multipista y Video</h4>
+          <p data-i18n="guide_step2_desc">Dibuja en el Piano Roll, toca con el teclado del PC o graba tu micrófono y cámara estilo Tiny Desk en tiempo real.</p>
+        </div>
+        <div class="guide-card">
+          <span class="step-num">03</span>
+          <h4 data-i18n="guide_step3_title">Mezcla, Masteriza y Exporta</h4>
+          <p data-i18n="guide_step3_desc">Ajusta Pan, Solo/Mute, aplica Auto-Wah, Flanger o Reverb de Convolución con limitador master -0.3 dBFS y descarga tu WAV.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <main id="view-studio" class="view-section">
+    <section class="transport-bar">
+      <div class="transport-controls">
+        <button id="btn-play-pause" class="transport-btn play-btn" onclick="togglePlayPause()" title="Espacio: Play / Pausa">▶ Play</button>
+        <button id="btn-stop" class="transport-btn" onclick="stopTransport()" title="Enter: Detener e ir a 00:00">⏹ Stop</button>
+        <button id="btn-record-midi" class="transport-btn rec-btn" onclick="toggleMidiRecord()" title="Ctrl+R: Grabar Pista Activa">🔴 Rec MIDI</button>
+        <button id="btn-loop" class="transport-btn" onclick="toggleLoop()" title="L: Bucle de 4 compases">🔁 Loop: OFF</button>
+        <button id="btn-metronome" class="transport-btn" onclick="toggleMetronome()" title="C: Metrónomo">⏱ Click: OFF</button>
+      </div>
+
+      <div class="time-display-box">
+        <span class="time-label">POSICIÓN</span>
+        <span id="transport-timecode" class="timecode">00:00.0 | 1.1.1</span>
+      </div>
+
+      <div class="transport-params">
+        <div class="param-item">
+          <label for="bpm-input">BPM</label>
+          <input type="number" id="bpm-input" value="105" min="40" max="240" onchange="updateBpm(this.value)" />
+        </div>
+        <div class="param-item">
+          <label for="snap-select">Grid</label>
+          <select id="snap-select" class="warm-select" onchange="updateGridSnap(this.value)">
+            <option value="0">Libre</option>
+            <option value="1">1/4</option>
+            <option value="0.5">1/8</option>
+            <option value="0.25" selected>1/16</option>
+          </select>
+        </div>
+        <div class="param-item">
+          <label for="swing-input">Swing %</label>
+          <input type="number" id="swing-input" value="0" min="0" max="75" onchange="updateSwing(this.value)" />
+        </div>
+        <div class="param-item">
+          <label class="checkbox-inline">
+            <input type="checkbox" id="precount-check" checked /> Pre-cuenta
+          </label>
+        </div>
+      </div>
+
+      <div class="transport-export">
+        <button class="btn-secondary-warm btn-sm" onclick="saveCurrentProject()" title="Guardar sesión en el servidor">💾 Guardar Sesión</button>
+        <button class="btn-primary-warm btn-sm" onclick="exportMasterWav()" title="Exportar mezcla maestra WAV 16-bit">⬇ Exportar WAV</button>
+        <button class="btn-icon" onclick="toggleShortcutsModal(true)" title="Ver Atajos de Teclado REAPER">⌨</button>
+      </div>
+    </section>
+
+    <section class="studio-context-strip">
+      <div class="strip-group">
+        <label>Estilo Musical:</label>
+        <select id="studio-style-select" class="warm-select" onchange="applyMusicalStyle(this.value)">
+          <option value="">-- Personalizado --</option>
+        </select>
+      </div>
+
+      <div class="strip-group">
+        <label>Escala / Microtonalidad:</label>
+        <select id="scale-select" class="warm-select" onchange="updateScale(this.value)">
+          <option value="Cromática">Cromática (12 notas)</option>
+          <option value="Pentatónica Menor">Pentatónica Menor (Andina)</option>
+          <option value="Pentatónica Mayor">Pentatónica Mayor</option>
+          <option value="Mixolidia">Mixolidia (Funk Étnico)</option>
+          <option value="Dórica">Dórica (Ambient / Dub)</option>
+          <option value="Frigia">Frigia (Trance / Ritual)</option>
+          <option value="Maqam Hijaz">Maqam Hijaz (Árabe / Microtonal)</option>
+          <option value="Raga Bhairav">Raga Bhairav (India)</option>
+          <option value="Pelog">Pelog (Gamelán / Indonesia)</option>
+        </select>
+      </div>
+
+      <div class="strip-group">
+        <label>Afinación La4 (Hz):</label>
+        <select id="tuning-select" class="warm-select" onchange="updateBaseTuning(this.value)">
+          <option value="440">440 Hz (Estándar)</option>
+          <option value="432">432 Hz (Orgánica)</option>
+          <option value="415">415 Hz (Barroca / Grave)</option>
+        </select>
+      </div>
+
+      <div class="strip-group">
+        <button class="btn-secondary-warm btn-xs" onclick="splitItemAtCursor()" title="Tecla S: Dividir clip/notas en cursor">✂ Dividir (S)</button>
+        <button class="btn-secondary-warm btn-xs" onclick="unmuteAllTracks()" title="Alt+M: Activar todas las pistas">🔊 Unmute Todo (Alt+M)</button>
+        <button class="btn-secondary-warm btn-xs" onclick="unsoloAllTracks()" title="Alt+S: Quitar Solo a todas">🎧 Unsolo Todo (Alt+S)</button>
+      </div>
+    </section>
+    <div class="daw-workspace">
+      <aside class="tracks-panel">
+        <div class="panel-header">
+          <h4>🎛 Pistas (TCP)</h4>
+          <button class="btn-primary-warm btn-xs" onclick="addNewTrack()">+ Pista</button>
+        </div>
+
+        <div id="tracks-list" class="tracks-list"></div>
+
+        <div class="mic-recorder-box">
+          <h5>🎤 Toma Acústica / Micrófono</h5>
+          <label class="checkbox-inline small-text">
+            <input type="checkbox" id="mic-monitor-tracks" checked /> Escuchar pista al grabar
+          </label>
+          <div class="mic-btn-row">
+            <button id="btn-mic-rec" class="btn-danger btn-xs" onclick="startMicRecording()">🔴 Grabar Voz/Inst</button>
+            <button id="btn-mic-stop" class="btn-secondary-warm btn-xs" onclick="stopMicRecording()" disabled>⏹ Parar</button>
+          </div>
+          <div id="mic-status-bar" class="mic-status">Micrófono listo</div>
+          <div id="mic-clips-container" class="mic-clips-list"></div>
+        </div>
+      </aside>
+
+      <section class="editor-center">
+        <div class="editor-tabs">
+          <button class="editor-tab active" data-tab="pianoroll" onclick="switchEditorTab('pianoroll')">🎹 Piano Roll &amp; Secuenciador</button>
+          <button class="editor-tab" data-tab="video" onclick="switchEditorTab('video')">🎥 Estudio Video Tiny Desk (3 Pistas)</button>
+        </div>
+
+        <div id="tab-pianoroll" class="editor-tab-content active">
+          <div class="pianoroll-toolbar">
+            <div class="octave-controls">
+              <button class="btn-secondary-warm btn-xs" onclick="changeOctave(-1)">⬅ Octava</button>
+              <span id="octave-label" class="mono-badge">Octava Base: C3</span>
+              <button class="btn-secondary-warm btn-xs" onclick="changeOctave(1)">Octava ➡</button>
+            </div>
+            <span class="hint-text">Doble clic: crear nota • Clic derecho/Simple: borrar • Teclado PC (A-L): tocar en vivo</span>
+            <button class="btn-danger btn-xs" onclick="clearActiveTrackNotes()">🗑 Limpiar Pista</button>
+          </div>
+
+          <div class="pianoroll-scroll-wrapper">
+            <div id="konva-pianoroll"></div>
+          </div>
+
+          <div class="virtual-keyboard-strip">
+            <div class="adsr-mini-controls">
+              <span>ADSR Activo:</span>
+              <label>A <input type="range" id="adsr-a" min="0.002" max="0.5" step="0.005" value="0.01" oninput="updateTrackADSR()"></label>
+              <label>D <input type="range" id="adsr-d" min="0.05" max="1.0" step="0.01" value="0.3" oninput="updateTrackADSR()"></label>
+              <label>S <input type="range" id="adsr-s" min="0" max="1" step="0.05" value="0.6" oninput="updateTrackADSR()"></label>
+              <label>R <input type="range" id="adsr-r" min="0.05" max="1.5" step="0.05" value="0.3" oninput="updateTrackADSR()"></label>
+            </div>
+            <div id="pc-keys-visual" class="pc-keys-row"></div>
+          </div>
+        </div>
+
+        <div id="tab-video" class="editor-tab-content">
+          <div class="video-studio-layout">
+            <div class="video-monitor-box">
+              <div class="video-stage">
+                <video id="video-player-1" class="stage-video active-cam" playsinline muted></video>
+                <video id="video-player-2" class="stage-video" playsinline muted></video>
+                <video id="video-player-3" class="stage-video" playsinline muted></video>
+                <div id="tinydesk-lower-third" class="lower-third-overlay">
+                  <span class="lt-badge">TINY DESK SESSION</span>
+                  <h4 id="lt-artist-name">Ensamble EthnoReaper</h4>
+                  <p id="lt-track-info">Sesión en Vivo • Toma 1</p>
+                </div>
+              </div>
+
+              <div class="video-switcher-bar">
+                <span>Cámara Activa:</span>
+                <button class="cam-btn active" onclick="selectActiveVideoTrack(0)">Cam 1 (Plano General)</button>
+                <button class="cam-btn" onclick="selectActiveVideoTrack(1)">Cam 2 (Detalle Inst.)</button>
+                <button class="cam-btn" onclick="selectActiveVideoTrack(2)">Cam 3 (Percusión)</button>
+                <label class="checkbox-inline">
+                  <input type="checkbox" id="tinydesk-lut-toggle" checked onchange="toggleTinyDeskFilter(this.checked)" /> Filtro Cálido Tiny Desk
+                </label>
+              </div>
+            </div>
+
+            <div class="video-tracks-controls">
+              <h4>📹 Pistas de Video Sincronizadas (Máx. 3)</h4>
+              <p class="muted-text">Sube hasta 3 videos MP4/WebM o graba con tu webcam. Se sincronizan al reloj maestro del DAW y puedes cortarlos con la tecla <strong>S</strong>.</p>
+
+              <div class="video-slot-card">
+                <strong>Pista Video 1 (Cam 1)</strong>
+                <div class="slot-actions">
+                  <input type="file" accept="video/mp4,video/webm" onchange="loadVideoFile(0, this.files)" />
+                  <button class="btn-danger btn-xs" onclick="toggleWebcamRecord(0)">🎥 Grabar Webcam</button>
+                </div>
+              </div>
+
+              <div class="video-slot-card">
+                <strong>Pista Video 2 (Cam 2)</strong>
+                <div class="slot-actions">
+                  <input type="file" accept="video/mp4,video/webm" onchange="loadVideoFile(1, this.files)" />
+                  <button class="btn-danger btn-xs" onclick="toggleWebcamRecord(1)">🎥 Grabar Webcam</button>
+                </div>
+              </div>
+
+              <div class="video-slot-card">
+                <strong>Pista Video 3 (Cam 3)</strong>
+                <div class="slot-actions">
+                  <input type="file" accept="video/mp4,video/webm" onchange="loadVideoFile(2, this.files)" />
+                  <button class="btn-danger btn-xs" onclick="toggleWebcamRecord(2)">🎥 Grabar Webcam</button>
+                </div>
+              </div>
+
+              <div class="lower-third-editor">
+                <h5>🏷 Rótulos y Créditos Tiny Desk</h5>
+                <input type="text" id="credit-artist-input" class="warm-input" placeholder="Nombre del Artista / Ensamble" oninput="updateLowerThird()" />
+                <input type="text" id="credit-song-input" class="warm-input" placeholder="Título de la Obra / Instrumentos" oninput="updateLowerThird()" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <aside class="fx-rack-panel">
+        <div class="panel-header">
+          <h4>🎚 FX Rack &amp; Master</h4>
+          <span class="limiter-badge" title="Limitador Brickwall activo a -0.3 dBFS">LIMIT -0.3dB</span>
+        </div>
+
+        <div class="fx-module">
+          <div class="fx-header">
+            <span>🌊 Reverb Convolución</span>
+            <span id="fx-reverb-val">25%</span>
+          </div>
+          <select id="fx-reverb-space" class="warm-select full-width" onchange="updateMasterFX()">
+            <option value="Sala">Sala Tiny Desk (Madera)</option>
+            <option value="Templo">Templo / Iglesia</option>
+            <option value="Cueva">Cueva Ancestral</option>
+            <option value="Cañón">Cañón Andino</option>
+          </select>
+          <input type="range" id="fx-reverb-mix" min="0" max="100" value="25" oninput="updateMasterFX()" />
+        </div>
+
+        <div class="fx-module">
+          <div class="fx-header">
+            <span>⏱ Delay Sincronizado</span>
+            <span id="fx-delay-val">15%</span>
+          </div>
+          <select id="fx-delay-div" class="warm-select full-width" onchange="updateMasterFX()">
+            <option value="off">Apagado (OFF)</option>
+            <option value="1/4">1/4 (Negra)</option>
+            <option value="1/8">1/8 (Corchea)</option>
+            <option value="1/8d" selected>1/8 Puntillo (Dub/Funk)</option>
+          </select>
+          <input type="range" id="fx-delay-mix" min="0" max="80" value="15" oninput="updateMasterFX()" />
+        </div>
+
+        <div class="fx-module">
+          <div class="fx-header">
+            <span>🎸 Auto-Wah Envolvente</span>
+            <label class="switch-inline"><input type="checkbox" id="fx-autowah-on" onchange="updateMasterFX()" /> ON</label>
+          </div>
+          <label class="small-label">Resonancia / Sensibilidad</label>
+          <input type="range" id="fx-autowah-q" min="1" max="15" value="6" oninput="updateMasterFX()" />
+        </div>
+
+        <div class="fx-module">
+          <div class="fx-header">
+            <span>🌀 Flanger Psicodélico</span>
+            <label class="switch-inline"><input type="checkbox" id="fx-flanger-on" onchange="updateMasterFX()" /> ON</label>
+          </div>
+          <label class="small-label">Profundidad Modulación</label>
+          <input type="range" id="fx-flanger-depth" min="0" max="100" value="45" oninput="updateMasterFX()" />
+        </div>
+
+        <div class="fx-module master-bus-box">
+          <div class="fx-header">
+            <span>🔊 Master Bus Output</span>
+            <span id="master-vol-val">90%</span>
+          </div>
+          <input type="range" id="master-volume" min="0" max="100" value="90" oninput="updateMasterFX()" />
+          <div class="vu-meter-bg">
+            <div id="master-vu-bar" class="vu-meter-fill"></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <main id="view-admin" class="view-section">
+    <div class="admin-container">
+      <div class="admin-header">
+        <h2>⚙ Mi Panel — Gestión de Catálogo y Servidores</h2>
+        <p class="muted-text">Administra tus instrumentos, carga muestras WAV/SF2, busca en Freesound API v2 o importa bloques JSON masivos.</p>
+      </div>
+
+      <div class="admin-grid">
+        <div class="admin-card">
+          <h3>📥 Gestor de Importación y Respaldo JSON</h3>
+          <p class="muted-text">Pega aquí cualquier paquete JSON con <code>instrumentos</code> o <code>estilos_musicales</code> para fusionarlo sin duplicados.</p>
+          <textarea id="json-import-textarea" class="warm-textarea" rows="8" placeholder='{"instrumentos": [...], "estilos_musicales": [...]}'></textarea>
+          <div class="admin-btn-row">
+            <button class="btn-primary-warm" onclick="importMassJson()">⬆ Importar JSON al Catálogo</button>
+            <button class="btn-secondary-warm" onclick="exportFullCatalogJson()">⬇ Descargar Respaldo Completo (.json)</button>
+          </div>
+          <div id="json-import-feedback" class="feedback-msg"></div>
+        </div>
+
+        <div class="admin-card">
+          <h3>🌍 Buscador Freesound API v2 (Samples Reales)</h3>
+          <p class="muted-text">Busca muestras reales con licencia Creative Commons y agrégalas directo a tu catálogo.</p>
+          <div class="search-bar-inline">
+            <input type="text" id="freesound-query-input" class="warm-input" placeholder="Ej: quena flute, jaw harp, didgeridoo..." value="kalimba note" />
+            <button class="btn-primary-warm" onclick="searchFreesoundSamples()">🔍 Buscar</button>
+          </div>
+          <input type="password" id="freesound-local-key" class="warm-input mt-sm" placeholder="Opcional: Tu Freesound API Key (si no está en Render)" />
+          <div id="freesound-results-list" class="freesound-results"></div>
+        </div>
+
+        <div class="admin-card">
+          <h3>🎻 Subir SoundFont (.sf2) o Sample (.wav/.mp3)</h3>
+          <p class="muted-text">Sube archivos a tu servidor en Render (<code>://onrender.com</code>).</p>
+          <div class="upload-group">
+            <label>Archivo SoundFont (.sf2):</label>
+            <input type="file" id="sf2-file-input" accept=".sf2" />
+            <button class="btn-secondary-warm btn-sm" onclick="uploadSf2ToServer()">Subir .SF2</button>
+          </div>
+          <hr class="warm-divider" />
+          <div class="upload-group">
+            <label>Sample de Audio (.wav, .flac, .mp3):</label>
+            <input type="file" id="sample-file-input" accept=".wav,.flac,.mp3,.ogg" />
+            <button class="btn-secondary-warm btn-sm" onclick="uploadSampleToServer()">Subir Sample</button>
+          </div>
+          <div id="upload-feedback" class="feedback-msg"></div>
+        </div>
+
+        <div class="admin-card">
+          <h3>🎼 Crear Nuevo Estilo Musical</h3>
+          <div class="form-stack">
+            <input type="text" id="new-style-name" class="warm-input" placeholder="Nombre del estilo (ej: Cumbia Psicodélica)" />
+            <div class="form-row-2">
+              <input type="number" id="new-style-bpm" class="warm-input" placeholder="BPM (ej: 96)" value="96" />
+              <select id="new-style-scale" class="warm-select">
+                <option value="Pentatónica Menor">Pentatónica Menor</option>
+                <option value="Mixolidia">Mixolidia</option>
+                <option value="Dórica">Dórica</option>
+                <option value="Frigia">Frigia</option>
+                <option value="Cromática">Cromática</option>
+              </select>
+            </div>
+            <input type="text" id="new-style-tracks" class="warm-input" placeholder="Instrumentos separados por coma (ej: Quena, Bongó, Charango)" />
+            <button class="btn-primary-warm" onclick="createNewMusicalStyle()">+ Guardar Estilo Musical</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="shortcuts-modal" class="modal-backdrop hidden" onclick="if(event.target===this) toggleShortcutsModal(false)">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>⌨ Mapa de Atajos REAPER-Core</h3>
+        <button class="btn-icon" onclick="toggleShortcutsModal(false)">✕</button>
+      </div>
+      <table class="shortcuts-table">
+        <thead>
+          <tr><th>Atajo</th><th>Acción</th><th>Contexto</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><kbd>Espacio</kbd></td><td>Play / Pausa</td><td>Global en Estudio</td></tr>
+          <tr><td><kbd>Enter</kbd></td><td>Stop y volver a 00:00</td><td>Global en Estudio</td></tr>
+          <tr><td><kbd>S</kbd></td><td>Dividir / Cortar clip o video en cursor</td><td>Pistas y Video</td></tr>
+          <tr><td><kbd>M</kbd></td><td>Silenciar (Mute) pista seleccionada</td><td>Pista Activa</td></tr>
+          <tr><td><kbd>Alt + M</kbd></td><td>Quitar silencio a todas las pistas</td><td>Mezclador</td></tr>
+          <tr><td><kbd>Alt + S</kbd></td><td>Quitar Solo a todas las pistas</td><td>Mezclador</td></tr>
+          <tr><td><kbd>L</kbd></td><td>Activar / Desactivar Bucle (Loop)</td><td>Transporte</td></tr>
+          <tr><td><kbd>C</kbd></td><td>Activar / Desactivar Metrónomo (Click)</td><td>Transporte</td></tr>
+          <tr><td><kbd>A - L</kbd></td><td>Tocar notas musicales en vivo</td><td>Teclado QWERTY</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="script.js"></script>
 </body>
 </html>
