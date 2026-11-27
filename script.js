@@ -39,20 +39,21 @@ let efectoEntrada = null;
 let instrumentosCacheados = {};
 
 // ==========================================
-// 2. CATÁLOGO DE 30 INSTRUMENTOS ÉTNICOS
+// 2. CATÁLOGO DE INSTRUMENTOS ÉTNICOS (¡CORREGIDO!)
+// Solo usamos nombres que la librería soundfont-player reconoce.
 // ==========================================
 const CATALOGO_INSTRUMENTOS = [
-    { valor: 'jaw_harp', nombre: 'Trompe (Arpa de Boca)' },
-    { valor: 'taiko_drum', nombre: 'Kultrún' }, 
-    { valor: 'french_horn', nombre: 'Trutruka' },
-    { valor: 'steel_drums', nombre: 'Metawe (Cántaro)' },
+    { valor: 'banjo', nombre: 'Trompe (Arpa de Boca)' }, // Banjo imita el twang
+    { valor: 'taiko_drum', nombre: 'Kultrún / Bombo Legüero' }, 
+    { valor: 'french_horn', nombre: 'Trutruka' }, 
+    { valor: 'steel_drums', nombre: 'Metawe (Cántaro)' }, 
     { valor: 'recorder', nombre: 'Pifilka' },
     { valor: 'shakuhachi', nombre: 'Shakuhachi (Japón)' },
     { valor: 'didgeridoo', nombre: 'Didgeridoo (Australia)' },
     { valor: 'pan_flute', nombre: 'Zampoña / Siku' },
     { valor: 'flute', nombre: 'Quena Andina' },
-    { valor: 'acoustic_guitar_nylon', nombre: 'Charango' },
-    { valor: 'banjo', nombre: 'Cuatro Venezolano' },
+    { valor: 'acoustic_guitar_nylon', nombre: 'Charango / Oud' },
+    { valor: 'acoustic_guitar_steel', nombre: 'Cuatro Venezolano' },
     { valor: 'acoustic_bass', nombre: 'Contrabajo Pizzicato' },
     { valor: 'kalimba', nombre: 'Kalimba (Mbira)' },
     { valor: 'sitar', nombre: 'Sitar (India)' },
@@ -75,7 +76,9 @@ function cargarInstrumentosEnSelector() {
         option.innerText = inst.nombre;
         selectorInstrumentoUsuario.appendChild(option);
     });
-    selectorInstrumentoUsuario.value = 'acoustic_grand_piano';
+    
+    // Seleccionamos el Sitar por defecto para que pruebes un sonido étnico real
+    selectorInstrumentoUsuario.value = 'sitar'; 
     estadoGrabacion.innerText = "Catálogo cargado. ¡Toca una tecla!";
 }
 cargarInstrumentosEnSelector();
@@ -169,7 +172,7 @@ async function tocarInstrumento(pitchMidi, duracion = 0.5) {
 }
 
 // ==========================================
-// 7. PIANO ROLL Y PIANO VIRTUAL (CON TECLAS NEGRAS)
+// 7. PIANO ROLL Y PIANO VIRTUAL
 // ==========================================
 function inicializarPianoRoll() {
     const container = document.getElementById('pianoRollContainer');
@@ -225,12 +228,10 @@ function inicializarPianoVirtual() {
 
     for (let i = inicioMidi; i <= finMidi; i++) {
         if (notasBlancas.includes(i % 12)) {
-            // Dibujar Tecla Blanca
             const tecla = document.createElement('div');
             tecla.className = 'tecla-blanca';
             tecla.innerText = i;
             tecla.dataset.midi = i;
-            tecla.dataset.tipo = 'blanca';
 
             tecla.addEventListener('pointerdown', (e) => { e.preventDefault(); presionarTecla(i); });
             tecla.addEventListener('pointerup', (e) => { e.preventDefault(); soltarTecla(i); });
@@ -239,16 +240,11 @@ function inicializarPianoVirtual() {
             wrapper.appendChild(tecla);
             contadorTeclasBlancas++;
 
-            // Si la siguiente nota es negra, dibujarla superpuesta
             const siguienteNota = i + 1;
             if (siguienteNota <= finMidi && !notasBlancas.includes(siguienteNota % 12)) {
                 const teclaNegra = document.createElement('div');
                 teclaNegra.className = 'tecla-negra';
                 teclaNegra.dataset.midi = siguienteNota;
-                teclaNegra.dataset.tipo = 'negra';
-                
-                // Posicionarla entre esta tecla blanca y la siguiente
-                // 50px es el ancho de la tecla blanca, 30px el ancho de la negra
                 teclaNegra.style.left = (contadorTeclasBlancas * 50 - 15) + 'px';
 
                 teclaNegra.addEventListener('pointerdown', (e) => { e.preventDefault(); presionarTecla(siguienteNota); });
