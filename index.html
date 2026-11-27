@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EthnoSynth Studio - DAW</title>
     <style>
         :root {
@@ -17,16 +17,19 @@
             --accent-orange: #e67e22;
             --border-color: #333;
         }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; background-color: var(--bg-dark); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; background-color: var(--bg-dark); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
 
-        .top-bar { background-color: var(--bg-panel); padding: 10px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex: 0 0 auto; }
-        .top-bar h1 { margin: 0; font-size: 1.2rem; color: var(--accent-blue); letter-spacing: 1px; }
+        .top-bar { background-color: var(--bg-panel); padding: 10px 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex: 0 0 auto; }
+        .top-bar h1 { margin: 0; font-size: 1.1rem; color: var(--accent-blue); letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .top-bar .project-info { font-size: 0.75rem; color: var(--text-muted); }
 
         .main-layout { display: flex; flex: 1; overflow: hidden; width: 100%; }
 
-        .sidebar { flex: 0 0 300px; background-color: var(--bg-panel); border-right: 1px solid var(--border-color); padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; z-index: 10; }
+        /* BARRA LATERAL (CONTROLES) */
+        .sidebar { flex: 0 0 280px; background-color: var(--bg-panel); border-right: 1px solid var(--border-color); padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; z-index: 10; }
         .control-group { background-color: var(--bg-panel-light); padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); }
-        .control-group h3 { margin: 0 0 10px 0; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; }
+        .control-group h3 { margin: 0 0 10px 0; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; }
 
         button { cursor: pointer; background-color: var(--bg-panel-light); color: var(--text-main); border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 4px; font-weight: bold; transition: all 0.2s; width: 100%; margin-bottom: 5px; }
         button:hover { background-color: #3d3d3d; }
@@ -38,68 +41,95 @@
         input[type="range"] { width: 100%; margin: 5px 0; accent-color: var(--accent-blue); }
         label { font-size: 0.85rem; color: var(--text-muted); display: block; margin-top: 5px; }
 
+        /* ÁREA DEL EDITOR (Piano Roll y Teclado) */
         .editor-area { flex: 1; min-width: 0; display: flex; flex-direction: column; background-color: #0a0a0a; }
-        #pianoRollContainer { flex: 1; width: 100%; overflow: auto; border-bottom: 1px solid var(--border-color); }
+        
+        #pianoRollContainer { flex: 1; width: 100%; overflow: auto; border-bottom: 1px solid var(--border-color); min-height: 150px; }
 
-        .piano-container {
-            height: 120px;
-            background-color: var(--bg-panel);
-            display: flex;
-            justify-content: flex-start;
-            position: relative;
-            border-top: 1px solid var(--border-color);
-            flex: 0 0 auto;
-            overflow-x: auto;
+        /* TECLADO VIRTUAL */
+        .piano-container { 
+            height: 140px; 
+            background-color: #1a1a1a; 
+            position: relative; 
+            flex: 0 0 auto; 
+            overflow-x: auto; 
             overflow-y: hidden;
-            -webkit-overflow-scrolling: touch;
-            padding: 0 10px;
-        }
-        .tecla-blanca {
-            width: 45px;
-            height: 100%;
-            background: #f0f0f0;
-            border: 1px solid #999;
-            border-radius: 0 0 5px 5px;
-            color: #333;
+            -webkit-overflow-scrolling: touch; 
+            padding: 0;
             display: flex;
-            align-items: flex-end;
-            justify-content: center;
-            padding-bottom: 10px;
-            box-sizing: border-box;
+        }
+        
+        .piano-keys-wrapper {
+            position: relative;
+            display: flex;
+            height: 100%;
+        }
+
+        .tecla-blanca { 
+            width: 50px; 
+            height: 100%; 
+            background: #f0f0f0; 
+            border: 1px solid #999; 
+            border-radius: 0 0 5px 5px; 
+            color: #888; 
+            display: flex; 
+            align-items: flex-end; 
+            justify-content: center; 
+            padding-bottom: 10px; 
+            cursor: pointer; 
+            user-select: none; 
+            flex-shrink: 0; 
+            touch-action: none;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .tecla-blanca.pressed { background: var(--accent-blue); color: white; }
+
+        /* DISEÑO DE TECLAS NEGRAS */
+        .tecla-negra {
+            position: absolute;
+            width: 30px;
+            height: 60%;
+            background: #111;
+            border: 1px solid #000;
+            border-radius: 0 0 4px 4px;
+            top: 0;
+            z-index: 2;
             cursor: pointer;
             user-select: none;
-            flex-shrink: 0;
             touch-action: none;
+            box-shadow: 1px 2px 3px rgba(0,0,0,0.5);
         }
-        .tecla-blanca:active { background: var(--accent-blue); color: white; }
-        .tecla-blanca.pressed {
-            background: var(--accent-red);
-            color: white;
-            transform: scaleY(0.97);
-        }
+        .tecla-negra.pressed { background: var(--accent-red); }
 
-        .status-text { font-size: 0.9rem; color: var(--accent-red); font-weight: bold; height: 20px; margin-top: 10px; }
+        .status-text { font-size: 0.85rem; color: var(--accent-green); font-weight: bold; height: 20px; margin-top: 10px; }
 
+        /* RESPONSIVO PARA MÓVILES */
         @media (max-width: 768px) {
             .main-layout { flex-direction: column; }
-            .sidebar { flex: 0 0 auto; max-height: 40%; border-right: none; border-bottom: 1px solid var(--border-color); }
-            .tecla-blanca { width: 35px; }
+            /* Achicamos el panel de controles en móvil y lo hacemos scrolleable */
+            .sidebar { flex: 0 0 auto; max-height: 45vh; border-right: none; border-bottom: 1px solid var(--border-color); padding: 10px; }
+            #pianoRollContainer { min-height: 100px; }
+            .tecla-blanca { width: 40px; }
+            .tecla-negra { width: 24px; }
+            .piano-container { height: 120px; }
         }
     </style>
 </head>
 <body>
     <div class="top-bar">
         <h1>🌌 EthnoSynth Studio</h1>
-        <div style="font-size: 0.8rem; color: var(--text-muted);">Proyecto: Sin título</div>
+        <div class="project-info">Proyecto: Sin título</div>
     </div>
 
     <div class="main-layout">
+        <!-- BARRA LATERAL -->
         <div class="sidebar">
             <div class="control-group">
                 <h3>⚙️ Panel de Administración</h3>
-                <input type="text" id="nuevoNombreEtnicos" placeholder="Nombre del instrumento" style="width: 90%; padding: 5px; margin-bottom: 5px; background: #111; color: white; border: 1px solid #444;">
-                <input type="file" id="archivoSF2" accept=".sf2" style="width: 100%; margin-bottom: 5px; color: white;">
-                <input type="number" id="programaSF2" placeholder="Programa (0)" value="0" style="width: 90%; padding: 5px; margin-bottom: 5px; background: #111; color: white; border: 1px solid #444;">
+                <input type="text" id="nuevoNombreEtnicos" placeholder="Nombre del instrumento" style="width: 100%; padding: 5px; margin-bottom: 5px; background: #111; color: white; border: 1px solid #444;">
+                <input type="file" id="archivoSF2" accept=".sf2" style="width: 100%; margin-bottom: 5px; color: white; font-size: 0.8rem;">
                 <button id="botonCargarSF2" style="background-color: #8e44ad;">⬆️ Subir .sf2 al servidor</button>
             </div>
 
@@ -114,7 +144,7 @@
             <div class="control-group">
                 <h3>Instrumento</h3>
                 <select id="selectorInstrumentoUsuario" style="width: 100%; padding: 8px; background: var(--bg-dark); color: white; border: 1px solid var(--border-color); border-radius: 4px;">
-                    <option value="acoustic_grand_piano">Piano</option>
+                    <option value="acoustic_grand_piano">Piano (Base)</option>
                 </select>
             </div>
 
@@ -133,9 +163,12 @@
             </div>
         </div>
 
+        <!-- ÁREA DEL EDITOR -->
         <div class="editor-area">
             <div id="pianoRollContainer"></div>
-            <div class="piano-container" id="pianoVirtual"></div>
+            <div class="piano-container" id="pianoVirtual">
+                <!-- Aquí JS inyectará las teclas -->
+            </div>
         </div>
     </div>
 
