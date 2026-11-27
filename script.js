@@ -1009,9 +1009,15 @@ function updateLowerThird() {
 
 // 13. EXPORTACIÓN MAESTRA WAV OFFLINE (16-BIT PCM + COLA DE 2s)
 async function exportMasterWav() {
+  // Si todas las pistas están vacías, generar patrón musical automático antes de exportar
+  const totalNotes = state.tracks.reduce((sum, t) => sum + t.notes.length, 0);
+  if (totalNotes === 0) {
+    generateGrooveForCurrentTracks();
+  }
+
   showToast("⏳ Renderizando mezcla maestra WAV...");
   const stepSec = 60 / state.bpm / 4;
-  const totalDuration = (state.totalSteps * stepSec) + 2.0;
+  const totalDuration = (state.totalSteps * stepSec) + 2.0; // Cola de 2s para reverb/delay
   const sampleRate = 44100;
   const offlineCtx = new OfflineAudioContext(2, Math.ceil(totalDuration * sampleRate), sampleRate);
 
@@ -1023,7 +1029,7 @@ async function exportMasterWav() {
   const anySolo = state.tracks.some(t => t.solo);
   state.tracks.forEach(track => {
     if (track.muted || (anySolo && !track.solo)) return;
-    const inst = state.catalog.instrumentos.find(i => i.id === track.instrumentId) || state.catalog.instrumentos[0];
+    const inst = state.catalog.instrumentos.find(i => i.id === track.instrumentId) || state.catalog.instrumentos;
     track.notes.forEach(n => {
       triggerInstrumentVoice(offlineCtx, limiter, inst, n.midi, n.step * stepSec, stepSec * (n.len || 1), track.volume, track.pan);
     });
@@ -1037,6 +1043,28 @@ async function exportMasterWav() {
   a.click();
   showToast("✅ Mezcla maestra WAV descargada (-0.3 dBFS)");
 }
+
+function generateGrooveForCurrentTracks() {
+  const scaleIntervals = Array.from(SCALES_MAP[state.scale]?.intervals || toScaleSet("0,3,5,7,10"));
+  state.tracks.forEach((track, idx) => {
+    const inst = state.catalog.instrumentos.find(i => i.id === track.instrumentId) || state.catalog.instrumentos;
+    const rootMidi = noteNameToMidi(inst?.nota_raiz || "C3");
+    track.notes = [];
+    for (let step = 0; step < 64; step += 4) {
+      if (idx === 0) {
+        const deg = scaleIntervals[(step / 4) % scaleIntervals.length];
+        track.notes.push({ midi: rootMidi + deg, step, len: 2 });
+      } else if (idx === 1) {
+        track.notes.push({ midi: rootMidi, step, len: 1 });
+        if (step % 8 === 4) track.notes.push({ midi: rootMidi + 5, step: step + 2, len: 1 });
+      } else {
+        if (step % 8 === 0) track.notes.push({ midi: rootMidi, step, len: 4 });
+      }
+    }
+  });
+  renderPianoRoll();
+}
+
 
 function audioBufferToWav(buffer) {
   const numOfChan = buffer.numberOfChannels;
