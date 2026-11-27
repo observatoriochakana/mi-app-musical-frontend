@@ -969,12 +969,20 @@ async function startMicRecording() {
     micRecorder = new MediaRecorder(stream);
     micChunks = [];
     micRecorder.ondataavailable = e => { if (e.data.size > 0) micChunks.push(e.data); };
-    micRecorder.onstop = () => {
+        micRecorder.onstop = async () => {
       const blob = new Blob(micChunks, { type: "audio/webm" });
       const url = URL.createObjectURL(blob);
-      state.micClips.push({ id: Date.now(), name: `Toma Mic #${state.micClips.length + 1}`, url });
+      const arrayBuffer = await blob.arrayBuffer();
+      state.micClips.push({
+        id: Date.now(),
+        name: `Toma Mic #${state.micClips.length + 1}`,
+        url,
+        arrayBuffer,
+        volume: 0.9,
+        muted: false
+      });
       renderMicClips();
-      document.getElementById("mic-status-bar").textContent = "Toma guardada con éxito";
+      document.getElementById("mic-status-bar").textContent = "Toma lista para mezcla y WAV";
     };
     micRecorder.start();
     document.getElementById("btn-mic-rec").disabled = true;
@@ -997,7 +1005,23 @@ function stopMicRecording() {
 
 function renderMicClips() {
   const box = document.getElementById("mic-clips-container");
-  box.innerHTML = state.micClips.map(c => `<div class="mic-clip-item"><span>🎙 ${c.name}</span><div><button class="btn-xs btn-secondary-warm" onclick="new Audio('${c.url}').play()">▶</button><a class="btn-xs btn-primary-warm" href="${c.url}" download="${c.name}.webm">⬇</a></div></div>`).join("");
+  box.innerHTML = state.micClips.map(c => `
+    <div class="mic-clip-item" style="opacity:${c.muted ? "0.5" : "1"};">
+      <span>🎙 ${c.name}</span>
+      <div style="display:flex; gap:0.25rem;">
+        <button class="btn-xs btn-secondary-warm" onclick="new Audio('${c.url}').play()" title="Escuchar toma">▶</button>
+        <button class="ms-btn ${c.muted ? "mute-on" : ""}" onclick="toggleMicClipMute(${c.id})" title="Silenciar en mezcla">M</button>
+        <a class="btn-xs btn-primary-warm" href="${c.url}" download="${c.name}.webm" title="Descargar toma suelta">⬇</a>
+      </div>
+    </div>
+  `).join("");
+}
+
+function toggleMicClipMute(id) {
+  const clip = state.micClips.find(c => c.id === id);
+  if (!clip) return;
+  clip.muted = !clip.muted;
+  renderMicClips();
 }
 
 async function importLocalAudioFiles(fileList) {
@@ -1198,6 +1222,104 @@ function updateLowerThird() {
   document.getElementById("lt-track-info").textContent = document.getElementById("credit-song-input").value || "Sesión en Vivo • Toma 1";
 }
 
+let videoMixRecorder = null;
+let videoMixChunks = [];
+let videoMixAnimFrame = null;
+
+function toggleTinyDeskVideoExport() {
+  const btn = document.getElementById("btn-export-tinydesk-video");
+  if (videoMixRecorder && videoMixRecorder.state === "recording") {
+    videoMixRecorder.stop();
+    cancelAnimationFrame(videoMixAnimFrame);
+    btn.textContent = "🎬 Grabar y Exportar Video Tiny Desk (.webm)";
+    btn.classList.remove("btn-danger");
+    return;
+  }
+
+  initAudioEngine();
+  const canvas = document.createElement("canvas");
+  canvas.width = 1280;
+  canvas.height = 720;
+  const ctx = canvas.getContext("2d");
+
+  // Conectar el bus master de audio del DAW al stream del video
+  const audioDest = audioCtx.createMediaStreamDestination();
+  masterGain.connect(audioDest);
+
+  const canvasStream = canvas.captureStream(30);
+  const combinedTracks = [
+    ...canvasStream.getVideoTracks(),
+    ...audioDest.stream.getAudioTracks()
+  ];
+  const combinedStream = new MediaStream(combinedTracks);
+
+  videoMixChunks = [];
+  videoMixRecorder = new MediaRecorder(combinedStream, { mimeType: "video/webm" });
+  videoMixRecorder.ondataavailable = e => { if (e.data.size > 0) videoMixChunks.push(e.data); };
+  videoMixRecorder.onstop = () => {
+    const blob = new Blob(videoMixChunks, { type: "video/webm" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `TinyDesk_EthnoReaper_${Date.now()}.webm`;
+    a.click();
+    showToast("✅ Video Tiny Desk exportado con audio masterizado");
+  };
+
+  // Bucle de renderizado visual (Cámara activa + Filtro Cálido + Lower Third)
+  function drawVideoFrame() {
+    ctx.fillStyle = "#14110f";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const activeVideo = document.getElementById(`video-player-${state.activeVideoCam + 1}`);
+    const useLut = document.getElementById("tinydesk-lut-toggle")?.checked;
+    ctx.filter = useLut ? "contrast(1.08) saturate(1.18) sepia(0.14) brightness(1.03)" : "none";
+
+    if (activeVideo && (activeVideo.readyState >= 2 || activeVideo.srcObject)) {
+      ctx.drawImage(activeVideo, 0, 0, canvas.width, canvas.height);
+    } else {
+      // Fondo visualizador si no hay cámara conectada
+      ctx.fillStyle = "#26201c";
+      ctx.fillRect(60, 60, canvas.width - 120, canvas.height - 120);
+      ctx.fillStyle = "#e88d38";
+      ctx.font = "bold 36px sans-serif";
+      ctx.fillText("ETHNOREAPER STUDIO • LIVE SESSION", 110, 340);
+    }
+    ctx.filter = "none";
+
+    // Dibujar rótulo inferior (Lower Third) estilo Tiny Desk
+    const artist = document.getElementById("credit-artist-input")?.value || "Ensamble EthnoReaper";
+    const song = document.getElementById("credit-song-input")?.value || "Sesión en Vivo • Toma 1";
+
+    ctx.fillStyle = "rgba(20, 17, 15, 0.86)";
+    ctx.fillRect(48, canvas.height - 155, 560, 105);
+    ctx.fillStyle = "#e88d38";
+    ctx.fillRect(48, canvas.height - 155, 8, 105);
+
+    ctx.font = "bold 15px monospace";
+    ctx.fillText("TINY DESK SESSION • LIVE", 72, canvas.height - 126);
+
+    ctx.fillStyle = "#f5efe6";
+    ctx.font = "bold 28px sans-serif";
+    ctx.fillText(artist, 72, canvas.height - 92);
+
+    ctx.fillStyle = "#b8aba0";
+    ctx.font = "20px sans-serif";
+    ctx.fillText(song, 72, canvas.height - 64);
+
+    if (videoMixRecorder && videoMixRecorder.state === "recording") {
+      videoMixAnimFrame = requestAnimationFrame(drawVideoFrame);
+    }
+  }
+
+  videoMixRecorder.start();
+  drawVideoFrame();
+  if (!state.isPlaying) togglePlayPause();
+
+  btn.textContent = "⏹ Detener y Descargar Video (.webm)";
+  btn.classList.add("btn-danger");
+  showToast("🔴 Grabando mezcla de Video + Audio Tiny Desk (cambia cámaras con Cam 1/2/3 o tecla S)");
+}
+
 // 13. EXPORTACIÓN MAESTRA WAV OFFLINE (16-BIT PCM + COLA DE 2s)
 function generateGrooveForCurrentTracks(isVariation = false) {
   const scaleObj = SCALES_MAP[state.scale] || SCALES_MAP["Pentatónica Menor"];
@@ -1246,57 +1368,135 @@ function generateGrooveForCurrentTracks(isVariation = false) {
   if (isVariation) showToast(`🎲 Nuevo Groove (${state.timeSignature}) generado`);
 }
 
+function buildOfflineImpulse(ctx, durationSec, decayRate) {
+  const rate = ctx.sampleRate;
+  const length = Math.floor(rate * durationSec);
+  const impulse = ctx.createBuffer(2, length, rate);
+  for (let ch = 0; ch < 2; ch++) {
+    const data = impulse.getChannelData(ch);
+    for (let i = 0; i < length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decayRate);
+    }
+  }
+  return impulse;
+}
+
 async function exportMasterWav() {
   const totalNotes = state.tracks.reduce((sum, t) => sum + t.notes.length, 0);
-  if (totalNotes === 0 && state.importedAudioTracks.length === 0) {
+  const activeMicClips = state.micClips.filter(c => !c.muted && c.arrayBuffer);
+  if (totalNotes === 0 && state.importedAudioTracks.length === 0 && activeMicClips.length === 0) {
     generateGrooveForCurrentTracks(false);
   }
 
-  showToast("⏳ Renderizando mezcla maestra WAV...");
+  showToast("⏳ Masterizando WAV con Reverb, Delay y Tomas Acústicas...");
   const stepSec = 60 / state.bpm / 4;
-  const seqDuration = (state.totalSteps * stepSec) + 2.0;
+  const seqDuration = (state.totalSteps * stepSec) + 2.5;
 
-  // Calcular duración máxima considerando también los audios importados activos
   const anySolo = isAnyTrackSoloed();
   const activeImported = state.importedAudioTracks.filter(a => !a.muted && (!anySolo || a.solo));
   let maxAudioDuration = seqDuration;
   activeImported.forEach(a => {
     if (isFinite(a.audioEl.duration) && a.audioEl.duration > maxAudioDuration) {
-      maxAudioDuration = Math.min(a.audioEl.duration + 1.0, 300); // Máx 5 min por seguridad en navegador
+      maxAudioDuration = Math.min(a.audioEl.duration + 1.5, 300);
     }
   });
 
   const sampleRate = 44100;
   const offlineCtx = new OfflineAudioContext(2, Math.ceil(maxAudioDuration * sampleRate), sampleRate);
 
+  // Bus de mezcla pre-FX
+  const fxBus = offlineCtx.createGain();
+  fxBus.gain.value = 1.0;
+
+  // Limitador Brickwall Master (-0.3 dBFS)
   const limiter = offlineCtx.createDynamicsCompressor();
   limiter.threshold.value = -0.3;
-  limiter.ratio.value = 20;
-  limiter.connect(offlineCtx.destination);
+  limiter.knee.value = 0.0;
+  limiter.ratio.value = 20.0;
+  limiter.attack.value = 0.001;
+  limiter.release.value = 0.08;
+
+  const masterOutGain = offlineCtx.createGain();
+  masterOutGain.gain.value = (Number(document.getElementById("master-volume")?.value || 90)) / 100;
+
+  // Señal directa (Dry) -> Limiter
+  fxBus.connect(limiter);
+
+  // Reverb de Convolución Offline
+  const revMix = Number(document.getElementById("fx-reverb-mix")?.value || 25) / 100;
+  if (revMix > 0) {
+    const revSpace = document.getElementById("fx-reverb-space")?.value || "Sala";
+    const spaceMap = { "Sala": [1.2, 3.0], "Templo": [3.2, 1.8], "Cueva": [2.6, 2.0], "Cañón": [4.0, 1.5] };
+    const [dur, dec] = spaceMap[revSpace] || [1.5, 2.5];
+    const offlineConv = offlineCtx.createConvolver();
+    offlineConv.buffer = buildOfflineImpulse(offlineCtx, dur, dec);
+    const offlineRevGain = offlineCtx.createGain();
+    offlineRevGain.gain.value = revMix;
+    fxBus.connect(offlineConv);
+    offlineConv.connect(offlineRevGain);
+    offlineRevGain.connect(limiter);
+  }
+
+  // Delay Sincronizado Offline
+  const delDiv = document.getElementById("fx-delay-div")?.value || "off";
+  const delMix = Number(document.getElementById("fx-delay-mix")?.value || 15) / 100;
+  if (delDiv !== "off" && delMix > 0) {
+    const mult = delDiv === "1/4" ? 1 : delDiv === "1/8" ? 0.5 : 0.75;
+    const offlineDelay = offlineCtx.createDelay(2.0);
+    offlineDelay.delayTime.value = (60 / state.bpm) * mult;
+    const offlineFb = offlineCtx.createGain();
+    offlineFb.gain.value = 0.35;
+    const offlineDelGain = offlineCtx.createGain();
+    offlineDelGain.gain.value = delMix;
+
+    fxBus.connect(offlineDelay);
+    offlineDelay.connect(offlineFb);
+    offlineFb.connect(offlineDelay);
+    offlineDelay.connect(offlineDelGain);
+    offlineDelGain.connect(limiter);
+  }
+
+  limiter.connect(masterOutGain);
+  masterOutGain.connect(offlineCtx.destination);
 
   // 1. Renderizar pistas de instrumentos étnicos
   state.tracks.forEach(track => {
     if (track.muted || (anySolo && !track.solo)) return;
     const inst = state.catalog.instrumentos.find(i => i.id === track.instrumentId) || state.catalog.instrumentos;
     track.notes.forEach(n => {
-      triggerInstrumentVoice(offlineCtx, limiter, inst, n.midi, n.step * stepSec, stepSec * (n.len || 1), track.volume, track.pan);
+      triggerInstrumentVoice(offlineCtx, fxBus, inst, n.midi, n.step * stepSec, stepSec * (n.len || 1), track.volume, track.pan);
     });
   });
 
-  // 2. Decodificar y mezclar pistas de audio importadas del dispositivo
+  // 2. Renderizar tomas acústicas grabadas con micrófono
+  for (const clip of activeMicClips) {
+    try {
+      const decodedMic = await offlineCtx.decodeAudioData(clip.arrayBuffer.slice(0));
+      const src = offlineCtx.createBufferSource();
+      const g = offlineCtx.createGain();
+      src.buffer = decodedMic;
+      g.gain.value = clip.volume || 0.9;
+      src.connect(g);
+      g.connect(fxBus);
+      src.start(0);
+    } catch (err) {
+      console.warn("Error decodificando toma de micrófono:", err);
+    }
+  }
+
+  // 3. Renderizar pistas de audio importadas desde el dispositivo
   for (const item of activeImported) {
     try {
-      const bufferCopy = item.arrayBuffer.slice(0);
-      const decodedBuffer = await offlineCtx.decodeAudioData(bufferCopy);
-      const source = offlineCtx.createBufferSource();
-      const gainNode = offlineCtx.createGain();
-      source.buffer = decodedBuffer;
-      gainNode.gain.value = item.volume;
-      source.connect(gainNode);
-      gainNode.connect(limiter);
-      source.start(0);
+      const decodedImp = await offlineCtx.decodeAudioData(item.arrayBuffer.slice(0));
+      const src = offlineCtx.createBufferSource();
+      const g = offlineCtx.createGain();
+      src.buffer = decodedImp;
+      g.gain.value = item.volume;
+      src.connect(g);
+      g.connect(limiter);
+      src.start(0);
     } catch (err) {
-      console.warn("No se pudo decodificar pista importada:", item.name, err);
+      console.warn("Error decodificando audio importado:", item.name, err);
     }
   }
 
@@ -1304,9 +1504,9 @@ async function exportMasterWav() {
   const wavBlob = audioBufferToWav(renderedBuffer);
   const a = document.createElement("a");
   a.href = URL.createObjectURL(wavBlob);
-  a.download = `EthnoReaper_TinyDesk_${state.bpm}BPM.wav`;
+  a.download = `EthnoReaper_Master_${state.bpm}BPM.wav`;
   a.click();
-  showToast("✅ Mezcla maestra WAV descargada (-0.3 dBFS)");
+  showToast("✅ Master WAV exportado con FX y Tomas Acústicas (-0.3 dBFS)");
 }
 
 
@@ -1499,20 +1699,47 @@ function applyMusicalStyle(styleId) {
   showToast(`✨ Plantilla cargada: ${st.nombre}`);
 }
 
+function saveCatalogToLocalBackup() {
+  try {
+    localStorage.setItem("ethnoreaper_custom_catalog", JSON.stringify(state.catalog));
+  } catch (e) {}
+}
+
+function loadCatalogFromLocalBackup() {
+  try {
+    const saved = localStorage.getItem("ethnoreaper_custom_catalog");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed.instrumentos) && parsed.instrumentos.length > 0) {
+        state.catalog.instrumentos = parsed.instrumentos;
+      }
+      if (Array.isArray(parsed.estilos_musicales) && parsed.estilos_musicales.length > 0) {
+        state.catalog.estilos_musicales = parsed.estilos_musicales;
+      }
+    }
+  } catch (e) {}
+}
+
 async function syncWithBackend() {
+  loadCatalogFromLocalBackup();
   const pill = document.getElementById("backend-status");
   const text = document.getElementById("backend-status-text");
   try {
     const res = await fetch(`${BACKEND_URL}/api/catalogo`);
     if (!res.ok) throw new Error("Offline");
     const data = await res.json();
-    if (data.instrumentos?.length) state.catalog.instrumentos = data.instrumentos;
-    if (data.estilos_musicales?.length) state.catalog.estilos_musicales = data.estilos_musicales;
+    if (data.instrumentos?.length > state.catalog.instrumentos.length) {
+      state.catalog.instrumentos = data.instrumentos;
+    }
+    if (data.estilos_musicales?.length > state.catalog.estilos_musicales.length) {
+      state.catalog.estilos_musicales = data.estilos_musicales;
+    }
+    saveCatalogToLocalBackup();
     pill.className = "status-pill status-online";
     text.textContent = "Render Online";
   } catch (e) {
     pill.className = "status-pill status-offline";
-    text.textContent = "Modo Local (30 Inst.)";
+    text.textContent = "Modo Local (30 Inst. / 50 Estilos)";
   }
   renderCatalog();
   renderStylesSelectors();
