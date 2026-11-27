@@ -41,6 +41,7 @@
         .btn-export { background-color: var(--accent-blue); border-color: var(--accent-blue); color: white; }
         .btn-mic { background-color: var(--accent-orange); border-color: var(--accent-orange); color: white; }
 
+        /* Estilos Multipista */
         .lista-pistas { display: flex; flex-direction: column; gap: 6px; max-height: 230px; overflow-y: auto; margin-bottom: 6px; }
         .pista-item { background: #1a1a1a; border: 1px solid #3a3a3a; border-left: 4px solid #666; border-radius: 4px; padding: 7px; cursor: pointer; transition: background 0.15s; }
         .pista-item.activa { background: #222933; border-color: var(--accent-blue); }
@@ -100,11 +101,16 @@
         .tecla-negra.pressed { background: var(--accent-red); }
 
         @media (max-width: 768px) {
-            .main-layout { flex-direction: column; }
-            .sidebar { flex: 0 0 auto; max-height: 45vh; border-right: none; border-bottom: 1px solid var(--border-color); padding: 8px; }
-            .tecla-blanca { width: 40px; }
-            .tecla-negra { width: 24px; }
-            .piano-container { height: 105px; }
+            body { overflow-y: auto; height: auto; min-height: 100dvh; }
+            .main-layout { flex-direction: column; overflow: visible; }
+            .sidebar { flex: 1 1 auto; width: 100%; max-height: none; border-right: none; border-bottom: 1px solid var(--border-color); padding: 12px; }
+            
+            /* En teléfono se oculta el Piano Roll, los controles MIDI y el teclado virtual */
+            .editor-area,
+            #grupoPistasMidi,
+            .snap-control {
+                display: none !important;
+            }
         }
     </style>
 </head>
@@ -118,8 +124,8 @@
             
             <button id="btnMetronomo" style="width: auto; margin: 0; padding: 4px 9px; font-size: 0.78rem; background: #2d2d2d;">⏱️ Metrónomo: OFF</button>
             
-            <label for="selectSnap" style="margin-left: 4px;">Snap:</label>
-            <select id="selectSnap" title="Cuantización de rejilla">
+            <label for="selectSnap" class="snap-control" style="margin-left: 4px;">Snap:</label>
+            <select id="selectSnap" class="snap-control" title="Cuantización de rejilla">
                 <option value="0">Libre (OFF)</option>
                 <option value="1">1/4 (Negra)</option>
                 <option value="0.5" selected>1/8 (Corchea)</option>
@@ -143,7 +149,7 @@
                 <button id="botonExportarAudio" class="btn-export">💾 Exportar WAV</button>
             </div>
 
-            <div class="control-group">
+            <div class="control-group" id="grupoPistasMidi">
                 <h3>
                     <span>🎼 Pistas MIDI</span>
                     <button id="btnAgregarPista" class="btn-mini" style="background: var(--accent-blue); color: white; border: none;">+ Nueva Pista</button>
