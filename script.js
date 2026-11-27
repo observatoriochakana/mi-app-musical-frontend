@@ -193,6 +193,7 @@ let state = {
   isMetronomeOn: false,
   currentStep: 0,
   totalSteps: 64, // 4 compases de 16 semicorcheas
+  timeSignature: "4/4",
   tracks: [],
   activeTrackId: null,
   micClips: [],
@@ -1203,40 +1204,46 @@ function generateGrooveForCurrentTracks(isVariation = false) {
   const scaleIntervals = Array.from(scaleObj.intervals);
   if (scaleIntervals.length === 0) scaleIntervals.push(0, 3, 5, 7, 10);
 
+  const isCompound68 = state.timeSignature === "6/8" || state.timeSignature === "3/4";
+  const isOdd78 = state.timeSignature === "7/8";
+  const stepUnit = isCompound68 ? 3 : 4; // Acento ternario en 6/8 vs binario en 4/4
+
   state.tracks.forEach((track, idx) => {
     const inst = state.catalog.instrumentos.find(i => i.id === track.instrumentId) || state.catalog.instrumentos;
     const rootMidi = noteNameToMidi(inst?.nota_raiz || "C3");
     const isPerc = ["drum_deep", "drum_slap", "udu_pot"].includes(inst?.timbre);
     track.notes = [];
 
-    for (let step = 0; step < state.totalSteps; step += 2) {
+    for (let step = 0; step < state.totalSteps; step += (isCompound68 ? 3 : 2)) {
       if (isPerc || idx === 1) {
-        // Patrón rítmico sincopado
-        if (step % 4 === 0 || (isVariation && Math.random() > 0.65)) {
-          const offset = (step % 8 === 4) ? 5 : 0;
+        // Patrón rítmico adaptado al compás (6/8 ternario, 7/8 asimétrico, 4/4 binario)
+        const isAccent = isCompound68 ? (step % 6 === 0 || step % 6 === 3) : isOdd78 ? (step % 14 === 0 || step % 14 === 6 || step % 14 === 10) : (step % 4 === 0);
+        if (isAccent || (isVariation && Math.random() > 0.65)) {
+          const offset = (step % (stepUnit * 2) === stepUnit) ? 5 : 0;
           track.notes.push({ midi: rootMidi + offset, step, len: 1 });
         }
       } else if (idx === 0) {
-        // Línea melódica principal en la escala activa
-        if (step % 4 === 0 || (isVariation && Math.random() > 0.55)) {
+        // Melodía principal en la escala activa
+        if (step % stepUnit === 0 || (isVariation && Math.random() > 0.55)) {
           const degIdx = isVariation
             ? Math.floor(Math.random() * scaleIntervals.length)
-            : (step / 4) % scaleIntervals.length;
+            : Math.floor(step / stepUnit) % scaleIntervals.length;
           const octBoost = (isVariation && Math.random() > 0.8) ? 12 : 0;
-          track.notes.push({ midi: rootMidi + scaleIntervals[degIdx] + octBoost, step, len: 2 });
+          track.notes.push({ midi: rootMidi + scaleIntervals[degIdx] + octBoost, step, len: isCompound68 ? 3 : 2 });
         }
       } else {
-        // Bajo / Bordón grave de soporte
-        if (step % 8 === 0 || (isVariation && step % 8 === 6 && Math.random() > 0.5)) {
-          const deg = (step % 16 === 8 && scaleIntervals.length > 2) ? scaleIntervals : 0;
-          track.notes.push({ midi: rootMidi + deg, step, len: 4 });
+        // Bajo / Bordón grave
+        const bassCycle = stepUnit * 2;
+        if (step % bassCycle === 0 || (isVariation && step % bassCycle === stepUnit && Math.random() > 0.5)) {
+          const deg = (step % (bassCycle * 2) === bassCycle && scaleIntervals.length > 2) ? scaleIntervals : 0;
+          track.notes.push({ midi: rootMidi + deg, step, len: stepUnit });
         }
       }
     }
   });
 
   renderPianoRoll();
-  if (isVariation) showToast("🎲 Nuevo Groove electro-étnico generado");
+  if (isVariation) showToast(`🎲 Nuevo Groove (${state.timeSignature}) generado`);
 }
 
 async function exportMasterWav() {
@@ -1466,6 +1473,7 @@ function applyMusicalStyle(styleId) {
   if (!st) return;
   document.getElementById("studio-style-select").value = st.id;
   updateBpm(st.bpm_base);
+  state.timeSignature = st.compas || "4/4";
   document.getElementById("swing-input").value = st.swing_porcentaje || 0;
   if (SCALES_MAP[st.escala_cuantizacion]) {
     document.getElementById("scale-select").value = st.escala_cuantizacion;
@@ -1637,4 +1645,31 @@ window.addEventListener("DOMContentLoaded", () => {
   renderStylesSelectors();
   renderPcKeyboardVisual();
   syncWithBackend();
+    // Registrar PWA Service Worker
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+
+  // Inicializar Web MIDI API (Teclados / Controladores USB)
+  if (navigator.requestMIDIAccess) {
+    navigator.requestMIDIAccess().then(midiAccess => {
+      for (const input of midiAccess.inputs.values()) {
+        input.onmidimessage = (msg) => {
+          const [status, note, velocity] = msg.data;
+          if ((status & 0xf0) === 0x90 && velocity > 0) {
+            initAudioEngine();
+            const activeTrack = state.tracks.find(t => t.id === state.activeTrackId);
+            if (!activeTrack) return;
+            const inst = state.catalog.instrumentos.find(i => i.id === activeTrack.instrumentId) || state.catalog.instrumentos;
+            triggerInstrumentVoice(audioCtx, autoWahFilter, inst, note, audioCtx.currentTime, 0.35, (velocity / 127) * activeTrack.volume, activeTrack.pan);
+            if (state.isRecordingMidi && state.isPlaying) {
+              activeTrack.notes.push({ midi: note, step: state.currentStep, len: 2 });
+              renderPianoRoll();
+            }
+          }
+        };
+      }
+    }).catch(() => {});
+  }
+
 });
