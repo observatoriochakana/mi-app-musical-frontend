@@ -18,64 +18,68 @@
             --border-color: #333;
         }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; background-color: var(--bg-dark); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        
+
         .top-bar { background-color: var(--bg-panel); padding: 10px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex: 0 0 auto; }
         .top-bar h1 { margin: 0; font-size: 1.2rem; color: var(--accent-blue); letter-spacing: 1px; }
-        
+
         .main-layout { display: flex; flex: 1; overflow: hidden; width: 100%; }
-        
+
         .sidebar { flex: 0 0 300px; background-color: var(--bg-panel); border-right: 1px solid var(--border-color); padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; z-index: 10; }
         .control-group { background-color: var(--bg-panel-light); padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); }
         .control-group h3 { margin: 0 0 10px 0; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; }
-        
+
         button { cursor: pointer; background-color: var(--bg-panel-light); color: var(--text-main); border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 4px; font-weight: bold; transition: all 0.2s; width: 100%; margin-bottom: 5px; }
         button:hover { background-color: #3d3d3d; }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-record { background-color: var(--accent-red); border-color: var(--accent-red); }
         .btn-play { background-color: var(--accent-green); border-color: var(--accent-green); color: white; }
         .btn-export { background-color: var(--accent-blue); border-color: var(--accent-blue); color: white; }
-        
+
         input[type="range"] { width: 100%; margin: 5px 0; accent-color: var(--accent-blue); }
         label { font-size: 0.85rem; color: var(--text-muted); display: block; margin-top: 5px; }
-        
+
         .editor-area { flex: 1; min-width: 0; display: flex; flex-direction: column; background-color: #0a0a0a; }
         #pianoRollContainer { flex: 1; width: 100%; overflow: auto; border-bottom: 1px solid var(--border-color); }
-        
-        /* ESTILOS DEL PIANO CORREGIDOS PARA MÓVILES */
-        .piano-container { 
-            height: 120px; 
-            background-color: var(--bg-panel); 
-            display: flex; 
-            justify-content: flex-start; 
-            position: relative; 
-            border-top: 1px solid var(--border-color); 
-            flex: 0 0 auto; 
-            overflow-x: auto; 
+
+        .piano-container {
+            height: 120px;
+            background-color: var(--bg-panel);
+            display: flex;
+            justify-content: flex-start;
+            position: relative;
+            border-top: 1px solid var(--border-color);
+            flex: 0 0 auto;
+            overflow-x: auto;
             overflow-y: hidden;
-            -webkit-overflow-scrolling: touch; 
+            -webkit-overflow-scrolling: touch;
             padding: 0 10px;
         }
-        .tecla-blanca { 
-            width: 45px; 
-            height: 100%; 
-            background: #f0f0f0; 
-            border: 1px solid #999; 
-            border-radius: 0 0 5px 5px; 
-            color: #333; 
-            display: flex; 
-            align-items: flex-end; 
-            justify-content: center; 
-            padding-bottom: 10px; 
-            box-sizing: border-box; 
-            cursor: pointer; 
-            user-select: none; 
-            flex-shrink: 0; 
-            touch-action: none; /* Evita el scroll al tocar la tecla */
+        .tecla-blanca {
+            width: 45px;
+            height: 100%;
+            background: #f0f0f0;
+            border: 1px solid #999;
+            border-radius: 0 0 5px 5px;
+            color: #333;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 10px;
+            box-sizing: border-box;
+            cursor: pointer;
+            user-select: none;
+            flex-shrink: 0;
+            touch-action: none;
         }
         .tecla-blanca:active { background: var(--accent-blue); color: white; }
-        
+        .tecla-blanca.pressed {
+            background: var(--accent-red);
+            color: white;
+            transform: scaleY(0.97);
+        }
+
         .status-text { font-size: 0.9rem; color: var(--accent-red); font-weight: bold; height: 20px; margin-top: 10px; }
-        
+
         @media (max-width: 768px) {
             .main-layout { flex-direction: column; }
             .sidebar { flex: 0 0 auto; max-height: 40%; border-right: none; border-bottom: 1px solid var(--border-color); }
@@ -136,7 +140,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/spessasynth_lib@4.4.7/dist/spessasynth_lib.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/konva@9.2.0/konva.min.js"></script>
     <script src="script.js"></script>
 </body>
