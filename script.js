@@ -20,6 +20,7 @@ const archivoSF2 = document.getElementById('archivoSF2');
 const botonCargarSF2 = document.getElementById('botonCargarSF2');
 
 // Elementos del Micrófono
+const chkEscucharMidiAlGrabar = document.getElementById('chkEscucharMidiAlGrabar');
 const btnGrabarMicrofono = document.getElementById('btnGrabarMicrofono');
 const btnDetenerMicrofono = document.getElementById('btnDetenerMicrofono');
 const btnReproducirMicrofono = document.getElementById('btnReproducirMicrofono');
@@ -34,6 +35,7 @@ let notasDetectadas = [];
 let grabando = false;
 let tiempoInicioGrabacion = 0;
 let notasActivas = {};
+let nodosMidiEnCurso = [];
 
 // Variables de Estado Micrófono
 let mediaRecorder = null;
@@ -199,24 +201,49 @@ async function tocarInstrumento(pitchMidi, duracion = 0.5, tiempoInicio = 0) {
 
     try {
         if (!instrumentosCacheados[nombreInstrumento]) {
-            estadoGrabacion.innerText = `Cargando sonido...`;
+            estadoGrabacion.innerText = "Cargando sonido...";
         }
         const instrumento = await obtenerInstrumento(audioContextGlobal, nombreInstrumento);
         const momento = audioContextGlobal.currentTime + tiempoInicio;
         instrumento.play(pitchMidi, momento, { duration: duracion, destination: efectoEntrada });
-        estadoGrabacion.innerText = `Instrumento listo.`;
+        estadoGrabacion.innerText = "Instrumento listo.";
     } catch (error) {
         console.error("Error al cargar instrumento:", error);
         estadoGrabacion.innerText = "Error al cargar el instrumento.";
     }
 }
 
+function detenerReproduccionMidiEnCurso() {
+    nodosMidiEnCurso.forEach(nodo => {
+        try {
+            if (nodo && typeof nodo.stop === 'function') nodo.stop();
+        } catch (e) {}
+    });
+    nodosMidiEnCurso = [];
+}
+
 // ==========================================
-// 5. GRABACIÓN DE MICRÓFONO
+// 5. GRABACIÓN DE MICRÓFONO (CON MONITOR MIDI)
 // ==========================================
 btnGrabarMicrofono.addEventListener('click', async () => {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const quiereEscucharMidi = chkEscucharMidiAlGrabar && chkEscucharMidiAlGrabar.checked && notasDetectadas.length > 0;
+        let instrumento = null;
+
+        if (quiereEscucharMidi) {
+            inicializarMotorDeAudio();
+            if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
+            estadoGrabacion.innerText = "⏳ Cargando pista MIDI de guía...";
+            instrumento = await obtenerInstrumento(audioContextGlobal, selectorInstrumentoUsuario.value);
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true
+            }
+        });
+
         mediaRecorder = new MediaRecorder(stream);
         chunksAudio = [];
 
@@ -225,6 +252,7 @@ btnGrabarMicrofono.addEventListener('click', async () => {
         };
 
         mediaRecorder.onstop = async () => {
+            detenerReproduccionMidiEnCurso();
             const blob = new Blob(chunksAudio, { type: 'audio/webm' });
             const arrayBuffer = await blob.arrayBuffer();
             inicializarMotorDeAudio();
@@ -238,10 +266,26 @@ btnGrabarMicrofono.addEventListener('click', async () => {
         };
 
         mediaRecorder.start();
+
+        // Disparar acompañamiento MIDI sincronizado con el inicio de grabación
+        if (quiereEscucharMidi && instrumento) {
+            detenerReproduccionMidiEnCurso();
+            const tiempoArranque = audioContextGlobal.currentTime + 0.05;
+            notasDetectadas.forEach(nota => {
+                const nodo = instrumento.play(nota.pitchMidi, tiempoArranque + nota.startTimeSeconds, {
+                    duration: nota.durationSeconds,
+                    destination: efectoEntrada
+                });
+                nodosMidiEnCurso.push(nodo);
+            });
+            estadoGrabacion.innerText = "🔴 Grabando Micrófono + escuchando MIDI...";
+        } else {
+            estadoGrabacion.innerText = "🔴 Grabando desde micrófono...";
+        }
+
         btnGrabarMicrofono.disabled = true;
         btnDetenerMicrofono.disabled = false;
         btnReproducirMicrofono.disabled = true;
-        estadoGrabacion.innerText = "🔴 Grabando desde micrófono...";
     } catch (error) {
         console.error("Error al acceder al micrófono:", error);
         alert("No se pudo acceder al micrófono. Revisa los permisos de tu navegador.");
@@ -249,6 +293,7 @@ btnGrabarMicrofono.addEventListener('click', async () => {
 });
 
 btnDetenerMicrofono.addEventListener('click', () => {
+    detenerReproduccionMidiEnCurso();
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
         btnGrabarMicrofono.disabled = false;
@@ -436,13 +481,13 @@ botonDetenerGrabacion.addEventListener('click', () => {
 
 botonLimpiar.addEventListener('click', () => {
     if (confirm("¿Borrar todas las notas MIDI?")) {
+        detenerReproduccionMidiEnCurso();
         notasDetectadas = [];
         actualizarNotasEnPianoRoll();
         estadoGrabacion.innerText = "🗑 Pista MIDI limpiada.";
     }
 });
 
-// Reproducción sincronizada: Micrófono + MIDI al mismo tiempo exacto
 botonReproducirMelodia.addEventListener('click', async () => {
     if (notasDetectadas.length === 0 && !audioGrabadoBuffer) {
         return alert("Graba audio con el micrófono o dibuja/graba notas MIDI primero.");
@@ -450,6 +495,7 @@ botonReproducirMelodia.addEventListener('click', async () => {
 
     inicializarMotorDeAudio();
     if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
+    detenerReproduccionMidiEnCurso();
 
     const nombreInstrumento = selectorInstrumentoUsuario.value;
     let instrumento = null;
@@ -470,10 +516,11 @@ botonReproducirMelodia.addEventListener('click', async () => {
 
     if (instrumento && notasDetectadas.length > 0) {
         notasDetectadas.forEach(nota => {
-            instrumento.play(nota.pitchMidi, tiempoArranque + nota.startTimeSeconds, {
+            const nodo = instrumento.play(nota.pitchMidi, tiempoArranque + nota.startTimeSeconds, {
                 duration: nota.durationSeconds,
                 destination: efectoEntrada
             });
+            nodosMidiEnCurso.push(nodo);
         });
     }
 
