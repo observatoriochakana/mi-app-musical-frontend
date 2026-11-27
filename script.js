@@ -12,23 +12,37 @@ const reverbSlider = document.getElementById('reverbSlider');
 const delaySlider = document.getElementById('delaySlider');
 const selectorInstrumentoUsuario = document.getElementById('selectorInstrumentoUsuario');
 
+// Elementos de Administración
+const nuevoNombreEtnicos = document.getElementById('nuevoNombreEtnicos');
+const archivoSF2 = document.getElementById('archivoSF2');
+const botonCargarSF2 = document.getElementById('botonCargarSF2');
+
+// Elementos del Micrófono
+const btnGrabarMicrofono = document.getElementById('btnGrabarMicrofono');
+const btnDetenerMicrofono = document.getElementById('btnDetenerMicrofono');
+const btnReproducirMicrofono = document.getElementById('btnReproducirMicrofono');
+
 // Botones de Octava
 const btnOctavaBajar = document.getElementById('btnOctavaBajar');
 const btnOctavaSubir = document.getElementById('btnOctavaSubir');
-const textoOctavaActual = document.getElementById('textoOctavaActual');
 
-// Variables de Estado
+// Variables de Estado MIDI
 let notasDetectadas = [];
 let grabando = false;
 let tiempoInicioGrabacion = 0;
 let notasActivas = {};
 
-// Rango MIDI extendido (4 octavas: C2 a C6)
+// Variables de Estado Micrófono
+let mediaRecorder = null;
+let chunksAudio = [];
+let audioGrabadoBuffer = null; // Aquí guardaremos el audio ya decodificado
+
+// Rango MIDI
 const inicioMidi = 36; 
 const finMidi = 84;    
 const altoFila = 20;
 const pxPorSegundo = 100;
-const anchoTeclaBlanca = 50; // Para calcular el scroll
+const anchoTeclaBlanca = 50; 
 
 // Variables de Konva
 let konvaStage = null;
@@ -75,13 +89,9 @@ function cargarInstrumentosEnSelector() {
         selectorInstrumentoUsuario.appendChild(option);
     });
     selectorInstrumentoUsuario.value = 'sitar'; 
-    estadoGrabacion.innerText = "Catálogo cargado. ¡Desliza el piano!";
+    estadoGrabacion.innerText = "Catálogo cargado. ¡Listo para grabar!";
 }
 cargarInstrumentosEnSelector();
-
-botonCargarSF2.addEventListener('click', async () => {
-    alert("La subida de archivos .sf2 estará disponible próximamente.");
-});
 
 // ==========================================
 // 3. MOTOR DE AUDIO Y EFECTOS
@@ -165,14 +175,75 @@ async function tocarInstrumento(pitchMidi, duracion = 0.5) {
 }
 
 // ==========================================
-// 5. PIANO ROLL Y PIANO VIRTUAL
+// 5. GRABACIÓN DE MICRÓFONO (NUEVO)
+// ==========================================
+btnGrabarMicrofono.addEventListener('click', async () => {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        chunksAudio = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) chunksAudio.push(e.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+            const blob = new Blob(chunksAudio, { type: 'audio/webm' });
+            
+            // Convertir a AudioBuffer para poder reproducirlo con efectos
+            const arrayBuffer = await blob.arrayBuffer();
+            inicializarMotorDeAudio(); // Asegurarnos de que el contexto existe
+            audioContextGlobal.decodeAudioData(arrayBuffer, (decodedData) => {
+                audioGrabadoBuffer = decodedData;
+                estadoGrabacion.innerText = "🎤 Grabación lista para reproducir.";
+                btnReproducirMicrofono.disabled = false;
+            });
+
+            // Apagar el micrófono para que no siga escuchando
+            stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        btnGrabarMicrofono.disabled = true;
+        btnDetenerMicrofono.disabled = false;
+        btnReproducirMicrofono.disabled = true;
+        estadoGrabacion.innerText = "🔴 Grabando desde micrófono...";
+    } catch (error) {
+        console.error("Error al acceder al micrófono:", error);
+        alert("No se pudo acceder al micrófono. Revisa los permisos de tu navegador.");
+    }
+});
+
+btnDetenerMicrofono.addEventListener('click', () => {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        btnGrabarMicrofono.disabled = false;
+        btnDetenerMicrofono.disabled = true;
+        estadoGrabacion.innerText = "Procesando audio...";
+    }
+});
+
+btnReproducirMicrofono.addEventListener('click', () => {
+    if (!audioGrabadoBuffer) return;
+    inicializarMotorDeAudio();
+    if (audioContextGlobal.state === 'suspended') audioContextGlobal.resume();
+
+    // Creamos la fuente de audio y la conectamos a los efectos
+    const source = audioContextGlobal.createBufferSource();
+    source.buffer = audioGrabadoBuffer;
+    source.connect(efectoEntrada); // Conectamos al rack de efectos
+    source.start();
+    estadoGrabacion.innerText = "▶️ Reproduciendo grabación...";
+});
+
+// ==========================================
+// 6. PIANO ROLL Y PIANO VIRTUAL
 // ==========================================
 function inicializarPianoRoll() {
     const container = document.getElementById('pianoRollContainer');
     if (!container) return;
     if (konvaStage) konvaStage.destroy();
 
-    // Ajustamos el alto del piano roll para 4 octavas
     konvaStage = new Konva.Stage({ container: 'pianoRollContainer', width: 3000, height: (finMidi - inicioMidi + 1) * altoFila });
     konvaLayer = new Konva.Layer();
     konvaStage.add(konvaLayer);
@@ -220,7 +291,6 @@ function inicializarPianoVirtual() {
     const notasBlancas = [0, 2, 4, 5, 7, 9, 11];
     let contadorTeclasBlancas = 0;
 
-    // Generamos las 4 octavas completas
     for (let i = inicioMidi; i <= finMidi; i++) {
         if (notasBlancas.includes(i % 12)) {
             const tecla = document.createElement('div');
@@ -240,7 +310,6 @@ function inicializarPianoVirtual() {
                 const teclaNegra = document.createElement('div');
                 teclaNegra.className = 'tecla-negra';
                 teclaNegra.dataset.midi = siguienteNota;
-                // 50px ancho blanco, 30px ancho negro -> centrado
                 teclaNegra.style.left = (contadorTeclasBlancas * anchoTeclaBlanca - 15) + 'px';
 
                 teclaNegra.addEventListener('pointerdown', (e) => { e.preventDefault(); presionarTecla(siguienteNota); });
@@ -287,11 +356,10 @@ function soltarTecla(pitchMidi) {
 }
 
 // ==========================================
-// 6. LÓGICA DE LOS BOTONES DE OCTAVA
+// 7. LÓGICA DE LOS BOTONES DE OCTAVA
 // ==========================================
-// Como el teclado es deslizable, los botones harán scroll automático en él.
 btnOctavaSubir.addEventListener('click', () => {
-    pianoVirtualContainer.scrollBy({ left: anchoTeclaBlanca * 7, behavior: 'smooth' }); // 7 teclas blancas = 1 octava
+    pianoVirtualContainer.scrollBy({ left: anchoTeclaBlanca * 7, behavior: 'smooth' });
 });
 
 btnOctavaBajar.addEventListener('click', () => {
@@ -299,7 +367,7 @@ btnOctavaBajar.addEventListener('click', () => {
 });
 
 // ==========================================
-// 7. CONTROLES DE REPRODUCCIÓN
+// 8. CONTROLES DE REPRODUCCIÓN
 // ==========================================
 botonGrabarPiano.addEventListener('click', () => {
     grabando = true;
@@ -331,7 +399,7 @@ botonReproducirMelodia.addEventListener('click', async () => {
 });
 
 // ==========================================
-// 8. INICIALIZACIÓN
+// 9. INICIALIZACIÓN
 // ==========================================
 inicializarPianoVirtual();
 inicializarPianoRoll();

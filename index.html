@@ -26,7 +26,6 @@
 
         .main-layout { display: flex; flex: 1; overflow: hidden; width: 100%; }
 
-        /* BARRA LATERAL (CONTROLES) */
         .sidebar { flex: 0 0 280px; background-color: var(--bg-panel); border-right: 1px solid var(--border-color); padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; z-index: 10; }
         .control-group { background-color: var(--bg-panel-light); padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); }
         .control-group h3 { margin: 0 0 10px 0; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; }
@@ -37,16 +36,15 @@
         .btn-record { background-color: var(--accent-red); border-color: var(--accent-red); }
         .btn-play { background-color: var(--accent-green); border-color: var(--accent-green); color: white; }
         .btn-export { background-color: var(--accent-blue); border-color: var(--accent-blue); color: white; }
+        .btn-mic { background-color: var(--accent-orange); border-color: var(--accent-orange); color: white; }
 
         input[type="range"] { width: 100%; margin: 5px 0; accent-color: var(--accent-blue); }
         label { font-size: 0.85rem; color: var(--text-muted); display: block; margin-top: 5px; }
 
-        /* ÁREA DEL EDITOR (Piano Roll y Teclado) */
         .editor-area { flex: 1; min-width: 0; display: flex; flex-direction: column; background-color: #0a0a0a; }
         
         #pianoRollContainer { flex: 1; width: 100%; overflow: auto; border-bottom: 1px solid var(--border-color); min-height: 150px; }
 
-        /* CONTROLES DEL TECLADO (OCTAVAS) */
         .keyboard-controls {
             display: flex;
             justify-content: space-between;
@@ -63,7 +61,6 @@
         }
         .keyboard-controls span { font-size: 0.8rem; color: var(--text-muted); }
 
-        /* TECLADO VIRTUAL */
         .piano-container { 
             height: 140px; 
             background-color: #1a1a1a; 
@@ -103,7 +100,6 @@
         
         .tecla-blanca.pressed { background: var(--accent-blue); color: white; }
 
-        /* DISEÑO DE TECLAS NEGRAS */
         .tecla-negra {
             position: absolute;
             width: 30px;
@@ -122,7 +118,6 @@
 
         .status-text { font-size: 0.85rem; color: var(--accent-green); font-weight: bold; height: 20px; margin-top: 10px; }
 
-        /* RESPONSIVO PARA MÓVILES */
         @media (max-width: 768px) {
             .main-layout { flex-direction: column; }
             .sidebar { flex: 0 0 auto; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--border-color); padding: 10px; }
@@ -140,7 +135,6 @@
     </div>
 
     <div class="main-layout">
-        <!-- BARRA LATERAL -->
         <div class="sidebar">
             <div class="control-group">
                 <h3>⚙️ Panel de Administración</h3>
@@ -149,8 +143,16 @@
                 <button id="botonCargarSF2" style="background-color: #8e44ad;">⬆️ Subir .sf2 al servidor</button>
             </div>
 
+            <!-- NUEVO GRUPO: MICRÓFONO -->
             <div class="control-group">
-                <h3>Grabación</h3>
+                <h3>🎤 Grabación de Micrófono</h3>
+                <button id="btnGrabarMicrofono" class="btn-mic">🔴 Grabar Micrófono</button>
+                <button id="btnDetenerMicrofono" disabled>⏹️ Detener Micrófono</button>
+                <button id="btnReproducirMicrofono" class="btn-play" style="margin-top: 10px;">▶️ Reproducir Grabación</button>
+            </div>
+
+            <div class="control-group">
+                <h3>Grabación MIDI (Piano)</h3>
                 <button id="botonGrabarPiano" class="btn-record">🔴 Grabar (Piano)</button>
                 <button id="botonDetenerGrabacion" disabled>⏹️ Detener</button>
                 <button id="botonLimpiar" style="margin-top: 10px; background: transparent; border: 1px solid #555;">🗑️ Limpiar Pista</button>
@@ -179,11 +181,9 @@
             </div>
         </div>
 
-        <!-- ÁREA DEL EDITOR -->
         <div class="editor-area">
             <div id="pianoRollContainer"></div>
             
-            <!-- Controles de Octava -->
             <div class="keyboard-controls">
                 <button id="btnOctavaBajar" style="background: #333;">⬅️ Octava</button>
                 <span id="textoOctavaActual">Do3 - Do6 (36 - 84)</span>
@@ -191,7 +191,6 @@
             </div>
 
             <div class="piano-container" id="pianoVirtual">
-                <!-- Aquí JS inyectará las teclas -->
             </div>
         </div>
     </div>
