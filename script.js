@@ -196,6 +196,7 @@ let state = {
   tracks: [],
   activeTrackId: null,
   micClips: [],
+  importedAudioTracks: [],
   activeVideoCam: 0,
   videoStreams: [null, null, null],
   mediaRecorders: [null, null, null]
@@ -500,6 +501,7 @@ function togglePlayPause() {
     state.isPlaying = false;
     clearInterval(schedulerTimer);
     pauseAllVideos();
+    pauseImportedAudios();
     document.getElementById("btn-play-pause").textContent = "▶ Play";
     document.getElementById("btn-play-pause").classList.remove("active-play");
   } else {
@@ -507,6 +509,7 @@ function togglePlayPause() {
     document.getElementById("btn-play-pause").textContent = "⏸ Pausa";
     document.getElementById("btn-play-pause").classList.add("active-play");
     syncAndPlayVideos();
+    stopAndResetImportedAudios();
     startSequencerLoop();
   }
 }
@@ -573,7 +576,7 @@ function startSequencerLoop() {
     }
 
     // Reproducir notas de pistas activas
-    const anySolo = state.tracks.some(t => t.solo);
+    const anySolo = isAnyTrackSoloed();
     const stepSec = 60 / state.bpm / 4;
 
     state.tracks.forEach(track => {
@@ -648,7 +651,7 @@ function renderTracksTCP() {
   container.innerHTML = "";
 
   state.tracks.forEach(track => {
-    const anySolo = state.tracks.some(t => t.solo);
+    const anySolo = isAnyTrackSoloed();
     const div = document.createElement("div");
     const isEffectivelyMuted = track.muted || (anySolo && !track.solo);
     div.className = `track-tcp ${track.id === state.activeTrackId ? "selected" : ""}`;
@@ -696,7 +699,7 @@ function toggleTrackMute(id) {
   t.muted = !t.muted;
   // Si activas Mute en una pista que estaba en Solo, quita su Solo
   if (t.muted && t.solo) t.solo = false;
-  renderTracksTCP();
+  renderTracksTCP(); refreshLiveAudioMuting(); renderImportedAudioList();
   showToast(`${t.muted ? "🔇 Mute ON" : "🔊 Mute OFF"}: ${t.name}`);
 }
 
@@ -706,7 +709,7 @@ function toggleTrackSolo(id) {
   t.solo = !t.solo;
   // Al activar Solo en una o varias pistas, asegúrate de quitarles Mute
   if (t.solo && t.muted) t.muted = false;
-  renderTracksTCP();
+  renderTracksTCP(); refreshLiveAudioMuting(); renderImportedAudioList();
   const soloCount = state.tracks.filter(tr => tr.solo).length;
   showToast(
     t.solo
@@ -719,12 +722,17 @@ function unmuteAllTracks() {
   state.tracks.forEach(t => t.muted = false);
   renderTracksTCP();
   showToast("🔊 Todas las pistas activadas (Unmute)");
+  state.importedAudioTracks.forEach(a => a.muted = false); 
+  refreshLiveAudioMuting(); 
+  renderImportedAudioList();
 }
-
 function unsoloAllTracks() {
   state.tracks.forEach(t => t.solo = false);
   renderTracksTCP();
   showToast("🎧 Solo desactivado en todas las pistas");
+  state.importedAudioTracks.forEach(a => a.solo = false); 
+  refreshLiveAudioMuting(); 
+  renderImportedAudioList();
 }
 
 function deleteTrack(id) {
@@ -991,6 +999,127 @@ function renderMicClips() {
   box.innerHTML = state.micClips.map(c => `<div class="mic-clip-item"><span>🎙 ${c.name}</span><div><button class="btn-xs btn-secondary-warm" onclick="new Audio('${c.url}').play()">▶</button><a class="btn-xs btn-primary-warm" href="${c.url}" download="${c.name}.webm">⬇</a></div></div>`).join("");
 }
 
+async function importLocalAudioFiles(fileList) {
+  if (!fileList || fileList.length === 0) return;
+  for (const file of Array.from(fileList)) {
+    const url = URL.createObjectURL(file);
+    const arrayBuffer = await file.arrayBuffer();
+    const audioEl = new Audio(url);
+    audioEl.preload = "auto";
+    state.importedAudioTracks.push({
+      id: Date.now() + Math.floor(Math.random() * 9999),
+      name: file.name,
+      url,
+      arrayBuffer,
+      audioEl,
+      volume: 0.85,
+      muted: false,
+      solo: false
+    });
+  }
+  renderImportedAudioList();
+  showToast(`📂 ${fileList.length} pista(s) de audio importada(s)`);
+}
+
+function isAnyTrackSoloed() {
+  return state.tracks.some(t => t.solo) || state.importedAudioTracks.some(a => a.solo);
+}
+
+function refreshLiveAudioMuting() {
+  const anySolo = isAnyTrackSoloed();
+  state.importedAudioTracks.forEach(item => {
+    const effectivelyMuted = item.muted || (anySolo && !item.solo);
+    item.audioEl.muted = effectivelyMuted;
+    item.audioEl.volume = item.volume;
+  });
+}
+
+function renderImportedAudioList() {
+  const container = document.getElementById("imported-audio-list");
+  if (!container) return;
+  const anySolo = isAnyTrackSoloed();
+
+  container.innerHTML = state.importedAudioTracks.map(item => {
+    const isEffectivelyMuted = item.muted || (anySolo && !item.solo);
+    return `
+    <div class="mic-clip-item" style="flex-direction:column; align-items:stretch; gap:0.3rem; margin-top:0.4rem; opacity:${isEffectivelyMuted ? "0.52" : "1"};">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:130px;" title="${item.name}">🎵 ${item.name}</span>
+        <div style="display:flex; gap:0.25rem;">
+          <button class="ms-btn ${item.muted ? "mute-on" : ""}" onclick="toggleImportedAudioMute(${item.id})" title="Mute (M)">M</button>
+          <button class="ms-btn ${item.solo ? "solo-on" : ""}" onclick="toggleImportedAudioSolo(${item.id})" title="Solo (S)">S</button>
+          <button class="ms-btn" onclick="removeImportedAudio(${item.id})" title="Quitar">✕</button>
+        </div>
+      </div>
+      <input type="range" min="0" max="1" step="0.05" value="${item.volume}" oninput="setImportedAudioVolume(${item.id}, this.value)" style="width:100%; accent-color:var(--amber-primary);" />
+    </div>`;
+  }).join("");
+}
+
+function toggleImportedAudioMute(id) {
+  const item = state.importedAudioTracks.find(a => a.id === id);
+  if (!item) return;
+  item.muted = !item.muted;
+  if (item.muted && item.solo) item.solo = false;
+  refreshLiveAudioMuting();
+  renderTracksTCP();
+  renderImportedAudioList();
+}
+
+function toggleImportedAudioSolo(id) {
+  const item = state.importedAudioTracks.find(a => a.id === id);
+  if (!item) return;
+  item.solo = !item.solo;
+  if (item.solo && item.muted) item.muted = false;
+  refreshLiveAudioMuting();
+  renderTracksTCP();
+  renderImportedAudioList();
+}
+
+function setImportedAudioVolume(id, val) {
+  const item = state.importedAudioTracks.find(a => a.id === id);
+  if (!item) return;
+  item.volume = Number(val);
+  item.audioEl.volume = item.volume;
+}
+
+function removeImportedAudio(id) {
+  const item = state.importedAudioTracks.find(a => a.id === id);
+  if (item) {
+    item.audioEl.pause();
+    URL.revokeObjectURL(item.url);
+  }
+  state.importedAudioTracks = state.importedAudioTracks.filter(a => a.id !== id);
+  refreshLiveAudioMuting();
+  renderTracksTCP();
+  renderImportedAudioList();
+}
+
+function syncAndPlayImportedAudios() {
+  const stepSec = 60 / state.bpm / 4;
+  const targetTime = state.currentStep * stepSec;
+  refreshLiveAudioMuting();
+  state.importedAudioTracks.forEach(item => {
+    if (isFinite(item.audioEl.duration) && targetTime < item.audioEl.duration) {
+      item.audioEl.currentTime = targetTime;
+      item.audioEl.play().catch(() => {});
+    } else if (!isFinite(item.audioEl.duration)) {
+      item.audioEl.play().catch(() => {});
+    }
+  });
+}
+
+function pauseImportedAudios() {
+  state.importedAudioTracks.forEach(item => item.audioEl.pause());
+}
+
+function stopAndResetImportedAudios() {
+  state.importedAudioTracks.forEach(item => {
+    item.audioEl.pause();
+    item.audioEl.currentTime = 0;
+  });
+}
+
 // 12. ESTUDIO DE VIDEO TINY DESK (HASTA 3 PISTAS SINCRONIZADAS)
 function selectActiveVideoTrack(index) {
   state.activeVideoCam = index;
@@ -1111,24 +1240,34 @@ function generateGrooveForCurrentTracks(isVariation = false) {
 }
 
 async function exportMasterWav() {
-  // Si todas las pistas están vacías, generar patrón musical automático antes de exportar
   const totalNotes = state.tracks.reduce((sum, t) => sum + t.notes.length, 0);
-  if (totalNotes === 0) {
-    generateGrooveForCurrentTracks();
+  if (totalNotes === 0 && state.importedAudioTracks.length === 0) {
+    generateGrooveForCurrentTracks(false);
   }
 
   showToast("⏳ Renderizando mezcla maestra WAV...");
   const stepSec = 60 / state.bpm / 4;
-  const totalDuration = (state.totalSteps * stepSec) + 2.0; // Cola de 2s para reverb/delay
+  const seqDuration = (state.totalSteps * stepSec) + 2.0;
+
+  // Calcular duración máxima considerando también los audios importados activos
+  const anySolo = isAnyTrackSoloed();
+  const activeImported = state.importedAudioTracks.filter(a => !a.muted && (!anySolo || a.solo));
+  let maxAudioDuration = seqDuration;
+  activeImported.forEach(a => {
+    if (isFinite(a.audioEl.duration) && a.audioEl.duration > maxAudioDuration) {
+      maxAudioDuration = Math.min(a.audioEl.duration + 1.0, 300); // Máx 5 min por seguridad en navegador
+    }
+  });
+
   const sampleRate = 44100;
-  const offlineCtx = new OfflineAudioContext(2, Math.ceil(totalDuration * sampleRate), sampleRate);
+  const offlineCtx = new OfflineAudioContext(2, Math.ceil(maxAudioDuration * sampleRate), sampleRate);
 
   const limiter = offlineCtx.createDynamicsCompressor();
   limiter.threshold.value = -0.3;
   limiter.ratio.value = 20;
   limiter.connect(offlineCtx.destination);
 
-  const anySolo = state.tracks.some(t => t.solo);
+  // 1. Renderizar pistas de instrumentos étnicos
   state.tracks.forEach(track => {
     if (track.muted || (anySolo && !track.solo)) return;
     const inst = state.catalog.instrumentos.find(i => i.id === track.instrumentId) || state.catalog.instrumentos;
@@ -1136,6 +1275,23 @@ async function exportMasterWav() {
       triggerInstrumentVoice(offlineCtx, limiter, inst, n.midi, n.step * stepSec, stepSec * (n.len || 1), track.volume, track.pan);
     });
   });
+
+  // 2. Decodificar y mezclar pistas de audio importadas del dispositivo
+  for (const item of activeImported) {
+    try {
+      const bufferCopy = item.arrayBuffer.slice(0);
+      const decodedBuffer = await offlineCtx.decodeAudioData(bufferCopy);
+      const source = offlineCtx.createBufferSource();
+      const gainNode = offlineCtx.createGain();
+      source.buffer = decodedBuffer;
+      gainNode.gain.value = item.volume;
+      source.connect(gainNode);
+      gainNode.connect(limiter);
+      source.start(0);
+    } catch (err) {
+      console.warn("No se pudo decodificar pista importada:", item.name, err);
+    }
+  }
 
   const renderedBuffer = await offlineCtx.startRendering();
   const wavBlob = audioBufferToWav(renderedBuffer);
@@ -1145,6 +1301,7 @@ async function exportMasterWav() {
   a.click();
   showToast("✅ Mezcla maestra WAV descargada (-0.3 dBFS)");
 }
+
 
 function generateGrooveForCurrentTracks() {
     const totalNotes = state.tracks.reduce((sum, t) => sum + t.notes.length, 0);

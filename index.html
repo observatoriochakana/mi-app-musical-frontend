@@ -205,6 +205,13 @@
           </div>
           <div id="mic-status-bar" class="mic-status">Micrófono listo</div>
           <div id="mic-clips-container" class="mic-clips-list"></div>
+                    <hr class="warm-divider" />
+          <h5>📂 Importar Audio del Dispositivo</h5>
+          <p class="small-text muted-text">Formatos: MP3, WAV, OGG, FLAC, M4A, AAC</p>
+          <input type="file" id="local-audio-upload" accept="audio/*,.mp3,.wav,.ogg,.flac,.m4a,.aac" multiple style="display:none" onchange="importLocalAudioFiles(this.files)" />
+          <button class="btn-secondary-warm btn-xs full-width" onclick="document.getElementById('local-audio-upload').click()">📂 Cargar Pista(s) de Audio</button>
+          <div id="imported-audio-list" class="mic-clips-list"></div>
+
         </div>
       </aside>
 
