@@ -12,12 +12,16 @@ const reverbSlider = document.getElementById('reverbSlider');
 const delaySlider = document.getElementById('delaySlider');
 const valReverb = document.getElementById('valReverb');
 const valDelay = document.getElementById('valDelay');
-const selectorInstrumentoUsuario = document.getElementById('selectorInstrumentoUsuario');
 
-// Elementos de Administración
-const nuevoNombreEtnicos = document.getElementById('nuevoNombreEtnicos');
-const archivoSF2 = document.getElementById('archivoSF2');
-const botonCargarSF2 = document.getElementById('botonCargarSF2');
+// Controles de Transporte, Snap y Pre-cuenta
+const inputBpm = document.getElementById('inputBpm');
+const btnMetronomo = document.getElementById('btnMetronomo');
+const selectSnap = document.getElementById('selectSnap');
+const chkPreCuenta = document.getElementById('chkPreCuenta');
+
+// Controles Multipista
+const btnAgregarPista = document.getElementById('btnAgregarPista');
+const listaPistasContainer = document.getElementById('listaPistasContainer');
 
 // Elementos del Micrófono
 const chkEscucharMidiAlGrabar = document.getElementById('chkEscucharMidiAlGrabar');
@@ -30,61 +34,24 @@ const btnLimpiarMicrofono = document.getElementById('btnLimpiarMicrofono');
 const btnOctavaBajar = document.getElementById('btnOctavaBajar');
 const btnOctavaSubir = document.getElementById('btnOctavaSubir');
 
-// Elementos y Estado de Tempo / Metrónomo
-const inputBpm = document.getElementById('inputBpm');
-const btnMetronomo = document.getElementById('btnMetronomo');
-let bpmActual = 120;
-let metronomoActivo = false;
-let intervaloMetronomo = null;
-let pulsoActual = 0;
-
-// Variables de Estado MIDI
-let notasDetectadas = [];
-let grabando = false;
-let tiempoInicioGrabacion = 0;
-let notasActivas = {};
-let nodosMidiEnCurso = [];
-
-// Variables de Estado Micrófono
-let mediaRecorder = null;
-let chunksAudio = [];
-let audioGrabadoBuffer = null;
-
-// Rango MIDI
-const inicioMidi = 36; 
-const finMidi = 84;    
-const altoFila = 20;
-const pxPorSegundo = 100;
-const anchoTeclaBlanca = 50; 
-
-// Variables de Konva
-let konvaStage = null;
-let konvaLayer = null;
-
-// Variables de Audio
-let audioContextGlobal = null;
-let masterGain = null;
-let efectoEntrada = null;
-let instrumentosCacheados = {};
-
 // ==========================================
-// 2. CATÁLOGO DE INSTRUMENTOS
+// 2. CATÁLOGO DE INSTRUMENTOS Y ESTADO MULTIPISTA
 // ==========================================
 const CATALOGO_INSTRUMENTOS = [
-    { valor: 'banjo', nombre: 'Trompe (Arpa de Boca)' },
+    { valor: 'sitar', nombre: 'Sitar (India)' },
     { valor: 'taiko_drum', nombre: 'Kultrún / Bombo' }, 
+    { valor: 'flute', nombre: 'Quena Andina' },
+    { valor: 'pan_flute', nombre: 'Zampoña / Siku' },
     { valor: 'french_horn', nombre: 'Trutruka' }, 
-    { valor: 'steel_drums', nombre: 'Metawe (Cántaro)' }, 
     { valor: 'recorder', nombre: 'Pifilka' },
+    { valor: 'banjo', nombre: 'Trompe (Arpa de Boca)' },
+    { valor: 'steel_drums', nombre: 'Metawe (Cántaro)' }, 
     { valor: 'shakuhachi', nombre: 'Shakuhachi (Japón)' },
     { valor: 'didgeridoo', nombre: 'Didgeridoo' },
-    { valor: 'pan_flute', nombre: 'Zampoña / Siku' },
-    { valor: 'flute', nombre: 'Quena Andina' },
     { valor: 'acoustic_guitar_nylon', nombre: 'Charango / Oud' },
     { valor: 'acoustic_guitar_steel', nombre: 'Cuatro Venezolano' },
     { valor: 'acoustic_bass', nombre: 'Contrabajo Pizzicato' },
     { valor: 'kalimba', nombre: 'Kalimba (Mbira)' },
-    { valor: 'sitar', nombre: 'Sitar (India)' },
     { valor: 'koto', nombre: 'Koto (Japón)' },
     { valor: 'shamisen', nombre: 'Shamisen (Japón)' },
     { valor: 'fiddle', nombre: 'Erhu (China)' },
@@ -93,39 +60,172 @@ const CATALOGO_INSTRUMENTOS = [
     { valor: 'acoustic_grand_piano', nombre: 'Piano (Base)' }
 ];
 
-function cargarInstrumentosEnSelector() {
-    if (!selectorInstrumentoUsuario) return;
-    selectorInstrumentoUsuario.innerHTML = '';
-    CATALOGO_INSTRUMENTOS.forEach(inst => {
-        const option = document.createElement('option');
-        option.value = inst.valor;
-        option.innerText = inst.nombre;
-        selectorInstrumentoUsuario.appendChild(option);
-    });
-    selectorInstrumentoUsuario.value = 'sitar'; 
-    if (estadoGrabacion) estadoGrabacion.innerText = "Catálogo cargado. ¡Listo para grabar!";
-}
-cargarInstrumentosEnSelector();
+const COLORES_PISTAS = ['#e74c3c', '#2ecc71', '#3498db', '#f39c12', '#9b59b6', '#1abc9c', '#e84393'];
 
-// Actualizar porcentajes visuales de los sliders
-if (reverbSlider && valReverb) {
-    reverbSlider.addEventListener('input', () => {
-        valReverb.innerText = reverbSlider.value;
-    });
+let pistasMidi = [
+    { id: 1, nombre: 'Pista 1', instrumento: 'sitar', volumen: 0.85, mute: false, solo: false, color: COLORES_PISTAS[0], notas: [] }
+];
+let pistaActivaId = 1;
+let contadorPistas = 1;
+
+// Estado de Grabación y Tempo
+let bpmActual = 120;
+let metronomoActivo = false;
+let intervaloMetronomo = null;
+let pulsoActual = 0;
+
+let grabando = false;
+let contandoPreCuenta = false;
+let tiempoInicioGrabacion = 0;
+let notasActivas = {};
+let nodosMidiEnCurso = [];
+
+// Estado Micrófono
+let mediaRecorder = null;
+let chunksAudio = [];
+let audioGrabadoBuffer = null;
+
+// Rango MIDI y Rejilla
+const inicioMidi = 36; 
+const finMidi = 84;    
+const altoFila = 20;
+const pxPorSegundo = 100;
+const anchoTeclaBlanca = 50; 
+
+let konvaStage = null;
+let konvaLayer = null;
+
+// Motor de Audio
+let audioContextGlobal = null;
+let masterGain = null;
+let efectoEntrada = null;
+let instrumentosCacheados = {};
+
+function obtenerPistaActiva() {
+    return pistasMidi.find(p => p.id === pistaActivaId) || pistasMidi[0];
 }
-if (delaySlider && valDelay) {
-    delaySlider.addEventListener('input', () => {
-        valDelay.innerText = delaySlider.value;
+
+function obtenerPistasAudibles() {
+    const haySolo = pistasMidi.some(p => p.solo);
+    return pistasMidi.filter(p => {
+        if (haySolo) return p.solo && !p.mute;
+        return !p.mute;
     });
 }
 
 // ==========================================
-// 3. MOTOR DE AUDIO Y EFECTOS
+// 3. INTERFAZ MULTIPISTA (UI)
 // ==========================================
+function renderizarListaPistas() {
+    if (!listaPistasContainer) return;
+    listaPistasContainer.innerHTML = '';
+
+    pistasMidi.forEach(pista => {
+        const div = document.createElement('div');
+        div.className = `pista-item ${pista.id === pistaActivaId ? 'activa' : ''}`;
+        div.style.borderLeftColor = pista.color;
+
+        div.addEventListener('click', (e) => {
+            if (['SELECT', 'INPUT', 'BUTTON'].includes(e.target.tagName)) return;
+            pistaActivaId = pista.id;
+            renderizarListaPistas();
+            actualizarNotasEnPianoRoll();
+        });
+
+        const opcionesHtml = CATALOGO_INSTRUMENTOS.map(inst => 
+            `<option value="${inst.valor}" ${inst.valor === pista.instrumento ? 'selected' : ''}>${inst.nombre}</option>`
+        ).join('');
+
+        div.innerHTML = `
+            <div class="pista-header">
+                <span class="pista-nombre" title="Clic para seleccionar esta pista">${pista.nombre} (${pista.notas.length})</span>
+                <div class="pista-btns">
+                    <button class="btn-mini btn-mute ${pista.mute ? 'mute-on' : ''}" title="Silenciar">M</button>
+                    <button class="btn-mini btn-solo ${pista.solo ? 'solo-on' : ''}" title="Solo">S</button>
+                    ${pistasMidi.length > 1 ? '<button class="btn-mini btn-del" title="Eliminar pista">✕</button>' : ''}
+                </div>
+            </div>
+            <div class="pista-controles">
+                <select class="sel-inst">${opcionesHtml}</select>
+                <input type="range" class="vol-pista" min="0" max="100" value="${Math.round(pista.volumen * 100)}" title="Volumen">
+            </div>
+        `;
+
+        div.querySelector('.btn-mute').addEventListener('click', () => {
+            pista.mute = !pista.mute;
+            renderizarListaPistas();
+        });
+
+        div.querySelector('.btn-solo').addEventListener('click', () => {
+            pista.solo = !pista.solo;
+            renderizarListaPistas();
+        });
+
+        const btnDel = div.querySelector('.btn-del');
+        if (btnDel) {
+            btnDel.addEventListener('click', () => {
+                if (confirm(`¿Eliminar "${pista.nombre}"?`)) {
+                    pistasMidi = pistasMidi.filter(p => p.id !== pista.id);
+                    if (pistaActivaId === pista.id) pistaActivaId = pistasMidi[0].id;
+                    renderizarListaPistas();
+                    actualizarNotasEnPianoRoll();
+                }
+            });
+        }
+
+        div.querySelector('.sel-inst').addEventListener('change', (e) => {
+            pista.instrumento = e.target.value;
+            pistaActivaId = pista.id;
+            renderizarListaPistas();
+        });
+
+        div.querySelector('.vol-pista').addEventListener('input', (e) => {
+            pista.volumen = parseInt(e.target.value) / 100;
+        });
+
+        listaPistasContainer.appendChild(div);
+    });
+}
+
+if (btnAgregarPista) {
+    btnAgregarPista.addEventListener('click', () => {
+        contadorPistas++;
+        const color = COLORES_PISTAS[(contadorPistas - 1) % COLORES_PISTAS.length];
+        const instSugerido = CATALOGO_INSTRUMENTOS[(contadorPistas - 1) % CATALOGO_INSTRUMENTOS.length].valor;
+        const nuevaPista = {
+            id: contadorPistas,
+            nombre: `Pista ${contadorPistas}`,
+            instrumento: instSugerido,
+            volumen: 0.85,
+            mute: false,
+            solo: false,
+            color: color,
+            notas: []
+        };
+        pistasMidi.push(nuevaPista);
+        pistaActivaId = nuevaPista.id;
+        renderizarListaPistas();
+        actualizarNotasEnPianoRoll();
+        estadoGrabacion.innerText = `✨ ${nuevaPista.nombre} creada y seleccionada.`;
+    });
+}
+
+// ==========================================
+// 4. MOTOR DE AUDIO, EFECTOS Y CUANTIZACIÓN
+// ==========================================
+function cuantizarTiempo(segundos) {
+    const factorPulso = selectSnap ? parseFloat(selectSnap.value) : 0;
+    if (!factorPulso || factorPulso <= 0) {
+        return Math.max(0, Math.round(segundos * 100) / 100);
+    }
+    const segundosPorPulso = 60 / bpmActual;
+    const pasoRejilla = segundosPorPulso * factorPulso;
+    return Math.max(0, Math.round(segundos / pasoRejilla) * pasoRejilla);
+}
+
 function construirCadenaEfectos(ctx, destinoFinal) {
     const entrada = ctx.createGain();
 
-    // Reverb
     const reverbNode = ctx.createConvolver();
     const length = ctx.sampleRate * 2.5;
     const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
@@ -139,7 +239,6 @@ function construirCadenaEfectos(ctx, destinoFinal) {
     const reverbGain = ctx.createGain();
     reverbGain.gain.value = reverbSlider ? parseInt(reverbSlider.value) / 100 : 0.3;
 
-    // Delay
     const delayNode = ctx.createDelay();
     delayNode.delayTime.value = 0.3;
     const delayFeedback = ctx.createGain();
@@ -149,7 +248,6 @@ function construirCadenaEfectos(ctx, destinoFinal) {
     const delayGain = ctx.createGain();
     delayGain.gain.value = delaySlider ? parseInt(delaySlider.value) / 100 : 0.2;
 
-    // Conexiones
     entrada.connect(delayNode);
     delayNode.connect(delayGain);
     delayGain.connect(reverbNode);
@@ -176,39 +274,40 @@ function inicializarMotorDeAudio() {
 
     if (reverbSlider) {
         reverbSlider.addEventListener('input', () => {
+            valReverb.innerText = reverbSlider.value;
             cadena.reverbGain.gain.value = parseInt(reverbSlider.value) / 100;
         });
     }
     if (delaySlider) {
         delaySlider.addEventListener('input', () => {
+            valDelay.innerText = delaySlider.value;
             cadena.delayGain.gain.value = parseInt(delaySlider.value) / 100;
         });
     }
 }
 
 // ==========================================
-// 3.5. METRÓNOMO Y CONTROL DE BPM
+// 5. METRÓNOMO Y PRE-CUENTA (COUNT-IN)
 // ==========================================
-function tocarClicMetronomo(esTiempoFuerte) {
+function tocarClicMetronomo(esTiempoFuerte, tiempoProgramado = null) {
     if (!audioContextGlobal) inicializarMotorDeAudio();
     if (audioContextGlobal.state === 'suspended') audioContextGlobal.resume();
 
     const osc = audioContextGlobal.createOscillator();
     const gain = audioContextGlobal.createGain();
 
-    // Tiempo 1 más agudo (1000 Hz), tiempos 2, 3 y 4 más graves (600 Hz)
-    osc.frequency.value = esTiempoFuerte ? 1000 : 600;
+    osc.frequency.value = esTiempoFuerte ? 1050 : 620;
     osc.type = 'triangle';
 
-    const ahora = audioContextGlobal.currentTime;
-    gain.gain.setValueAtTime(0.35, ahora);
-    gain.gain.exponentialRampToValueAtTime(0.001, ahora + 0.06);
+    const t = tiempoProgramado !== null ? tiempoProgramado : audioContextGlobal.currentTime;
+    gain.gain.setValueAtTime(0.4, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
 
     osc.connect(gain);
-    gain.connect(masterGain); // Va directo al master (sin reverb ni delay)
+    gain.connect(masterGain);
 
-    osc.start(ahora);
-    osc.stop(ahora + 0.06);
+    osc.start(t);
+    osc.stop(t + 0.06);
 }
 
 function iniciarMetronomo() {
@@ -216,7 +315,6 @@ function iniciarMetronomo() {
     pulsoActual = 0;
     const msPorPulso = (60 / bpmActual) * 1000;
 
-    // Primer clic inmediato
     tocarClicMetronomo(true);
     pulsoActual = 1;
 
@@ -231,6 +329,34 @@ function detenerMetronomo() {
         clearInterval(intervaloMetronomo);
         intervaloMetronomo = null;
     }
+}
+
+function ejecutarPreCuenta(alTerminar) {
+    if (!chkPreCuenta || !chkPreCuenta.checked) {
+        alTerminar();
+        return;
+    }
+
+    contandoPreCuenta = true;
+    detenerMetronomo();
+    const msPorPulso = (60 / bpmActual) * 1000;
+    let conteo = 1;
+
+    estadoGrabacion.innerText = `⏳ Pre-cuenta: 1...`;
+    tocarClicMetronomo(true);
+
+    const timerPre = setInterval(() => {
+        conteo++;
+        if (conteo <= 4) {
+            estadoGrabacion.innerText = `⏳ Pre-cuenta: ${conteo}...`;
+            tocarClicMetronomo(false);
+        } else {
+            clearInterval(timerPre);
+            contandoPreCuenta = false;
+            if (metronomoActivo) iniciarMetronomo();
+            alTerminar();
+        }
+    }, msPorPulso);
 }
 
 if (btnMetronomo) {
@@ -256,16 +382,14 @@ if (inputBpm) {
         inputBpm.value = nuevoBpm;
         bpmActual = nuevoBpm;
 
-        // Reiniciar metrónomo al nuevo tempo si está encendido
         if (metronomoActivo) iniciarMetronomo();
-        // Redibujar rejilla con los nuevos tiempos
         inicializarPianoRoll();
         actualizarNotasEnPianoRoll();
     });
 }
 
 // ==========================================
-// 4. FUNCIÓN MAESTRA PARA TOCAR
+// 6. REPRODUCCIÓN DE INSTRUMENTOS Y PISTAS
 // ==========================================
 async function obtenerInstrumento(ctx, nombreInstrumento) {
     if (ctx === audioContextGlobal && instrumentosCacheados[nombreInstrumento]) {
@@ -278,24 +402,22 @@ async function obtenerInstrumento(ctx, nombreInstrumento) {
     return inst;
 }
 
-async function tocarInstrumento(pitchMidi, duracion = 0.5, tiempoInicio = 0) {
+async function tocarInstrumento(pitchMidi, duracion = 0.5) {
     if (!audioContextGlobal) inicializarMotorDeAudio();
     if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
 
-    const nombreInstrumento = selectorInstrumentoUsuario.value;
-    if (!nombreInstrumento) return;
+    const pista = obtenerPistaActiva();
+    if (!pista || !pista.instrumento) return;
 
     try {
-        if (!instrumentosCacheados[nombreInstrumento]) {
-            estadoGrabacion.innerText = "Cargando sonido...";
-        }
-        const instrumento = await obtenerInstrumento(audioContextGlobal, nombreInstrumento);
-        const momento = audioContextGlobal.currentTime + tiempoInicio;
-        instrumento.play(pitchMidi, momento, { duration: duracion, destination: efectoEntrada });
-        estadoGrabacion.innerText = "Instrumento listo.";
+        const instrumento = await obtenerInstrumento(audioContextGlobal, pista.instrumento);
+        instrumento.play(pitchMidi, audioContextGlobal.currentTime, {
+            duration: duracion,
+            gain: pista.volumen * 1.5,
+            destination: efectoEntrada
+        });
     } catch (error) {
-        console.error("Error al cargar instrumento:", error);
-        estadoGrabacion.innerText = "Error al cargar el instrumento.";
+        console.error("Error al tocar instrumento:", error);
     }
 }
 
@@ -308,73 +430,81 @@ function detenerReproduccionMidiEnCurso() {
     nodosMidiEnCurso = [];
 }
 
+async function programarPistasMidi(tiempoArranque, excluirPistaActiva = false) {
+    const pistasAudibles = obtenerPistasAudibles().filter(p => 
+        p.notas.length > 0 && (!excluirPistaActiva || p.id !== pistaActivaId)
+    );
+    if (pistasAudibles.length === 0) return;
+
+    const promesasInst = pistasAudibles.map(p => obtenerInstrumento(audioContextGlobal, p.instrumento));
+    const instrumentosCargados = await Promise.all(promesasInst);
+
+    pistasAudibles.forEach((pista, idx) => {
+        const inst = instrumentosCargados[idx];
+        pista.notas.forEach(nota => {
+            const nodo = inst.play(nota.pitchMidi, tiempoArranque + nota.startTimeSeconds, {
+                duration: nota.durationSeconds,
+                gain: pista.volumen * 1.5,
+                destination: efectoEntrada
+            });
+            nodosMidiEnCurso.push(nodo);
+        });
+    });
+}
+
 // ==========================================
-// 5. GRABACIÓN DE MICRÓFONO (CON MONITOR MIDI)
+// 7. GRABACIÓN DE MICRÓFONO (CON PRE-CUENTA)
 // ==========================================
 btnGrabarMicrofono.addEventListener('click', async () => {
-    try {
-        const quiereEscucharMidi = chkEscucharMidiAlGrabar && chkEscucharMidiAlGrabar.checked && notasDetectadas.length > 0;
-        let instrumento = null;
+    if (contandoPreCuenta) return;
 
-        if (quiereEscucharMidi) {
-            inicializarMotorDeAudio();
-            if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
-            estadoGrabacion.innerText = "⏳ Cargando pista MIDI de guía...";
-            instrumento = await obtenerInstrumento(audioContextGlobal, selectorInstrumentoUsuario.value);
-        }
+    try {
+        inicializarMotorDeAudio();
+        if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
 
         const stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                echoCancellation: true,
-                noiseSuppression: true
-            }
+            audio: { echoCancellation: true, noiseSuppression: true }
         });
 
-        mediaRecorder = new MediaRecorder(stream);
-        chunksAudio = [];
-
-        mediaRecorder.ondataavailable = (e) => {
-            if (e.data.size > 0) chunksAudio.push(e.data);
-        };
-
-        mediaRecorder.onstop = async () => {
-            detenerReproduccionMidiEnCurso();
-            const blob = new Blob(chunksAudio, { type: 'audio/webm' });
-            const arrayBuffer = await blob.arrayBuffer();
-            inicializarMotorDeAudio();
-            audioContextGlobal.decodeAudioData(arrayBuffer, (decodedData) => {
-                audioGrabadoBuffer = decodedData;
-                estadoGrabacion.innerText = "🎤 Grabación de voz lista.";
-                btnReproducirMicrofono.disabled = false;
-            });
-
-            stream.getTracks().forEach(track => track.stop());
-        };
-
-        mediaRecorder.start();
-
-        // Disparar acompañamiento MIDI sincronizado con el inicio de grabación
-        if (quiereEscucharMidi && instrumento) {
-            detenerReproduccionMidiEnCurso();
-            const tiempoArranque = audioContextGlobal.currentTime + 0.05;
-            notasDetectadas.forEach(nota => {
-                const nodo = instrumento.play(nota.pitchMidi, tiempoArranque + nota.startTimeSeconds, {
-                    duration: nota.durationSeconds,
-                    destination: efectoEntrada
-                });
-                nodosMidiEnCurso.push(nodo);
-            });
-            estadoGrabacion.innerText = "🔴 Grabando Micrófono + escuchando MIDI...";
-        } else {
-            estadoGrabacion.innerText = "🔴 Grabando desde micrófono...";
-        }
-
         btnGrabarMicrofono.disabled = true;
-        btnDetenerMicrofono.disabled = false;
         btnReproducirMicrofono.disabled = true;
+
+        ejecutarPreCuenta(async () => {
+            mediaRecorder = new MediaRecorder(stream);
+            chunksAudio = [];
+
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) chunksAudio.push(e.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                detenerReproduccionMidiEnCurso();
+                const blob = new Blob(chunksAudio, { type: 'audio/webm' });
+                const arrayBuffer = await blob.arrayBuffer();
+                audioContextGlobal.decodeAudioData(arrayBuffer, (decodedData) => {
+                    audioGrabadoBuffer = decodedData;
+                    estadoGrabacion.innerText = "🎤 Grabación de voz lista.";
+                    btnReproducirMicrofono.disabled = false;
+                });
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorder.start();
+            btnDetenerMicrofono.disabled = false;
+
+            const quiereEscucharMidi = chkEscucharMidiAlGrabar && chkEscucharMidiAlGrabar.checked;
+            if (quiereEscucharMidi) {
+                detenerReproduccionMidiEnCurso();
+                await programarPistasMidi(audioContextGlobal.currentTime + 0.05, false);
+                estadoGrabacion.innerText = "🔴 Grabando Mic + Pistas MIDI...";
+            } else {
+                estadoGrabacion.innerText = "🔴 Grabando micrófono...";
+            }
+        });
     } catch (error) {
         console.error("Error al acceder al micrófono:", error);
-        alert("No se pudo acceder al micrófono. Revisa los permisos de tu navegador.");
+        btnGrabarMicrofono.disabled = false;
+        alert("No se pudo acceder al micrófono.");
     }
 });
 
@@ -412,7 +542,7 @@ if (btnLimpiarMicrofono) {
 }
 
 // ==========================================
-// 6. PIANO ROLL Y PIANO VIRTUAL
+// 8. PIANO ROLL (CON REJILLA BPM Y MULTIPISTA)
 // ==========================================
 function inicializarPianoRoll() {
     const container = document.getElementById('pianoRollContainer');
@@ -426,8 +556,8 @@ function inicializarPianoRoll() {
     konvaLayer = new Konva.Layer();
     konvaStage.add(konvaLayer);
 
-    // 1. Filas horizontales (notas)
-    const teclasNegrasIndices =;
+    // Filas horizontales
+    const teclasNegrasIndices = [1, 3, 6, 8, 10];
     for (let i = 0; i <= (finMidi - inicioMidi); i++) {
         const y = i * altoFila;
         const esTeclaNegra = teclasNegrasIndices.includes((finMidi - i) % 12);
@@ -439,7 +569,7 @@ function inicializarPianoRoll() {
         konvaLayer.add(rect);
     }
 
-    // 2. Líneas verticales según BPM (pulsos y compases)
+    // Líneas verticales según BPM y subdivisión
     const segundosPorPulso = 60 / bpmActual;
     const pxPorPulso = segundosPorPulso * pxPorSegundo;
     const totalPulsos = Math.floor(anchoTotal / pxPorPulso);
@@ -449,43 +579,97 @@ function inicializarPianoRoll() {
         const esInicioCompas = p % 4 === 0;
         const linea = new Konva.Line({
             points: [x, 0, x, altoTotal],
-            stroke: esInicioCompas ? '#7f8c8d' : '#3d566e',
+            stroke: esInicioCompas ? '#95a5a6' : '#3d566e',
             strokeWidth: esInicioCompas ? 1.5 : 0.8
         });
         konvaLayer.add(linea);
     }
 
+    // Dibujar nota con doble clic (cuantizada)
     konvaStage.on('dblclick dbltap', () => {
         const pointerPos = konvaStage.getPointerPosition();
-        const tiempo = Math.round(pointerPos.x / pxPorSegundo * 10) / 10;
+        const tiempoBruto = pointerPos.x / pxPorSegundo;
+        const tiempo = cuantizarTiempo(tiempoBruto);
         const pitch = finMidi - Math.floor(pointerPos.y / altoFila);
-        notasDetectadas.push({ startTimeSeconds: tiempo, pitchMidi: pitch, durationSeconds: 0.5, amplitude: 1 });
+        const duracionDefault = selectSnap && parseFloat(selectSnap.value) > 0 
+            ? (60 / bpmActual) * parseFloat(selectSnap.value) 
+            : 0.5;
+
+        const pista = obtenerPistaActiva();
+        pista.notas.push({ 
+            startTimeSeconds: tiempo, 
+            pitchMidi: pitch, 
+            durationSeconds: Math.max(0.15, duracionDefault), 
+            amplitude: 1 
+        });
+        tocarInstrumento(pitch, 0.3);
+        renderizarListaPistas();
         actualizarNotasEnPianoRoll();
     });
 
     konvaLayer.draw();
 }
 
-
 function actualizarNotasEnPianoRoll() {
     if (!konvaLayer) return;
     konvaLayer.find('.nota-rect').forEach(nodo => nodo.destroy());
 
-    notasDetectadas.forEach((nota, index) => {
+    // 1. Notas de otras pistas (referencia visual semitransparente)
+    pistasMidi.forEach(pista => {
+        if (pista.id === pistaActivaId || pista.mute) return;
+        pista.notas.forEach(nota => {
+            const rectFantasma = new Konva.Rect({
+                x: nota.startTimeSeconds * pxPorSegundo,
+                y: (finMidi - nota.pitchMidi) * altoFila,
+                width: Math.max(10, nota.durationSeconds * pxPorSegundo),
+                height: altoFila - 2,
+                fill: pista.color,
+                cornerRadius: 3,
+                opacity: 0.25,
+                listening: false,
+                name: 'nota-rect'
+            });
+            konvaLayer.add(rectFantasma);
+        });
+    });
+
+    // 2. Notas de la pista activa (editables)
+    const pistaActiva = obtenerPistaActiva();
+    pistaActiva.notas.forEach((nota, index) => {
         const x = nota.startTimeSeconds * pxPorSegundo;
         const ancho = Math.max(10, nota.durationSeconds * pxPorSegundo);
         const y = (finMidi - nota.pitchMidi) * altoFila;
 
-        const rectNota = new Konva.Rect({ x: x, y: y, width: ancho, height: altoFila - 2, fill: '#e74c3c', cornerRadius: 3, opacity: 0.9, draggable: true, name: 'nota-rect' });
+        const rectNota = new Konva.Rect({ 
+            x: x, y: y, width: ancho, height: altoFila - 2, 
+            fill: pistaActiva.color, stroke: '#ffffff', strokeWidth: 0.7,
+            cornerRadius: 3, opacity: 0.95, draggable: true, name: 'nota-rect' 
+        });
 
-        rectNota.on('click', (e) => { e.cancelBubble = true; notasDetectadas.splice(index, 1); actualizarNotasEnPianoRoll(); });
-        rectNota.on('dragend', () => { notasDetectadas[index].startTimeSeconds = Math.max(0, rectNota.x() / pxPorSegundo); notasDetectadas[index].pitchMidi = finMidi - Math.round(rectNota.y() / altoFila); });
+        rectNota.on('click', (e) => { 
+            e.cancelBubble = true; 
+            pistaActiva.notas.splice(index, 1); 
+            renderizarListaPistas();
+            actualizarNotasEnPianoRoll(); 
+        });
+
+        rectNota.on('dragend', () => { 
+            const tiempoCuantizado = cuantizarTiempo(rectNota.x() / pxPorSegundo);
+            const nuevoPitch = Math.max(inicioMidi, Math.min(finMidi, finMidi - Math.round(rectNota.y() / altoFila)));
+            pistaActiva.notas[index].startTimeSeconds = tiempoCuantizado; 
+            pistaActiva.notas[index].pitchMidi = nuevoPitch;
+            actualizarNotasEnPianoRoll();
+        });
 
         konvaLayer.add(rectNota);
     });
+
     konvaLayer.draw();
 }
 
+// ==========================================
+// 9. PIANO VIRTUAL Y GRABACIÓN EN VIVO
+// ==========================================
 function inicializarPianoVirtual() {
     if (!pianoVirtualContainer) return;
     pianoVirtualContainer.innerHTML = '<div class="piano-keys-wrapper" id="pianoKeysWrapper"></div>';
@@ -524,9 +708,7 @@ function inicializarPianoVirtual() {
     }
 
     document.addEventListener('pointerup', () => {
-        Object.keys(notasActivas).forEach(pitch => {
-            soltarTecla(parseInt(pitch));
-        });
+        Object.keys(notasActivas).forEach(pitch => soltarTecla(parseInt(pitch)));
     });
 }
 
@@ -537,7 +719,7 @@ async function presionarTecla(pitchMidi) {
     const tecla = document.querySelector(`[data-midi="${pitchMidi}"]`);
     if (tecla) tecla.classList.add('pressed');
 
-    tocarInstrumento(pitchMidi, 0.5, 0);
+    tocarInstrumento(pitchMidi, 0.5);
 
     if (grabando) {
         const tiempoActual = (Date.now() - tiempoInicioGrabacion) / 1000;
@@ -551,71 +733,83 @@ function soltarTecla(pitchMidi) {
 
     if (!grabando || !notasActivas[pitchMidi]) return;
     const tiempoActual = (Date.now() - tiempoInicioGrabacion) / 1000;
-    const duracion = Math.max(0.1, tiempoActual - notasActivas[pitchMidi].inicio);
-    notasDetectadas.push({ startTimeSeconds: notasActivas[pitchMidi].inicio, durationSeconds: duracion, pitchMidi: pitchMidi, amplitude: 1 });
+    const duracion = Math.max(0.12, tiempoActual - notasActivas[pitchMidi].inicio);
+    const inicioCuantizado = cuantizarTiempo(notasActivas[pitchMidi].inicio);
+
+    const pista = obtenerPistaActiva();
+    pista.notas.push({ 
+        startTimeSeconds: inicioCuantizado, 
+        durationSeconds: duracion, 
+        pitchMidi: pitchMidi, 
+        amplitude: 1 
+    });
+
     delete notasActivas[pitchMidi];
+    renderizarListaPistas();
     actualizarNotasEnPianoRoll();
 }
 
-// ==========================================
-// 7. LÓGICA DE LOS BOTONES DE OCTAVA
-// ==========================================
 if (btnOctavaSubir) {
-    btnOctavaSubir.addEventListener('click', () => {
-        pianoVirtualContainer.scrollBy({ left: anchoTeclaBlanca * 7, behavior: 'smooth' });
-    });
+    btnOctavaSubir.addEventListener('click', () => pianoVirtualContainer.scrollBy({ left: anchoTeclaBlanca * 7, behavior: 'smooth' }));
 }
-
 if (btnOctavaBajar) {
-    btnOctavaBajar.addEventListener('click', () => {
-        pianoVirtualContainer.scrollBy({ left: -anchoTeclaBlanca * 7, behavior: 'smooth' });
-    });
+    btnOctavaBajar.addEventListener('click', () => pianoVirtualContainer.scrollBy({ left: -anchoTeclaBlanca * 7, behavior: 'smooth' }));
 }
 
 // ==========================================
-// 8. CONTROLES DE REPRODUCCIÓN SINCRONIZADA
+// 10. CONTROLES DE GRABACIÓN Y REPRODUCCIÓN TOTAL
 // ==========================================
-botonGrabarPiano.addEventListener('click', () => {
-    grabando = true;
-    tiempoInicioGrabacion = Date.now();
-    estadoGrabacion.innerText = "🔴 Grabando MIDI...";
+botonGrabarPiano.addEventListener('click', async () => {
+    if (contandoPreCuenta) return;
+    inicializarMotorDeAudio();
+    if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
+
     botonGrabarPiano.disabled = true;
-    botonDetenerGrabacion.disabled = false;
+
+    ejecutarPreCuenta(async () => {
+        grabando = true;
+        tiempoInicioGrabacion = Date.now();
+        botonDetenerGrabacion.disabled = false;
+
+        detenerReproduccionMidiEnCurso();
+        await programarPistasMidi(audioContextGlobal.currentTime + 0.02, true);
+
+        const pista = obtenerPistaActiva();
+        estadoGrabacion.innerText = `🔴 Grabando en ${pista.nombre}...`;
+    });
 });
 
 botonDetenerGrabacion.addEventListener('click', () => {
     grabando = false;
+    detenerReproduccionMidiEnCurso();
     estadoGrabacion.innerText = "⏹️ Grabación MIDI detenida.";
     botonGrabarPiano.disabled = false;
     botonDetenerGrabacion.disabled = true;
 });
 
 botonLimpiar.addEventListener('click', () => {
-    if (confirm("¿Borrar todas las notas MIDI?")) {
+    const pista = obtenerPistaActiva();
+    if (pista.notas.length === 0) return;
+    if (confirm(`¿Borrar todas las notas de "${pista.nombre}"?`)) {
         detenerReproduccionMidiEnCurso();
-        notasDetectadas = [];
+        pista.notas = [];
+        renderizarListaPistas();
         actualizarNotasEnPianoRoll();
-        estadoGrabacion.innerText = "🗑 Pista MIDI limpiada.";
+        estadoGrabacion.innerText = `🗑 Notas de ${pista.nombre} borradas.`;
     }
 });
 
 botonReproducirMelodia.addEventListener('click', async () => {
-    if (notasDetectadas.length === 0 && !audioGrabadoBuffer) {
-        return alert("Graba audio con el micrófono o dibuja/graba notas MIDI primero.");
+    const pistasAudibles = obtenerPistasAudibles().filter(p => p.notas.length > 0);
+    if (pistasAudibles.length === 0 && !audioGrabadoBuffer) {
+        return alert("Graba audio con el micrófono o agrega notas en una pista activa.");
     }
 
     inicializarMotorDeAudio();
     if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
     detenerReproduccionMidiEnCurso();
 
-    const nombreInstrumento = selectorInstrumentoUsuario.value;
-    let instrumento = null;
-
-    if (notasDetectadas.length > 0) {
-        estadoGrabacion.innerText = "⏳ Preparando pistas sincronizadas...";
-        instrumento = await obtenerInstrumento(audioContextGlobal, nombreInstrumento);
-    }
-
+    estadoGrabacion.innerText = "⏳ Preparando mezcla...";
     const tiempoArranque = audioContextGlobal.currentTime + 0.1;
 
     if (audioGrabadoBuffer) {
@@ -625,35 +819,29 @@ botonReproducirMelodia.addEventListener('click', async () => {
         source.start(tiempoArranque);
     }
 
-    if (instrumento && notasDetectadas.length > 0) {
-        notasDetectadas.forEach(nota => {
-            const nodo = instrumento.play(nota.pitchMidi, tiempoArranque + nota.startTimeSeconds, {
-                duration: nota.durationSeconds,
-                destination: efectoEntrada
-            });
-            nodosMidiEnCurso.push(nodo);
-        });
-    }
-
-    estadoGrabacion.innerText = "▶️ Reproduciendo mezcla (Mic + MIDI)...";
+    await programarPistasMidi(tiempoArranque, false);
+    estadoGrabacion.innerText = "▶️ Reproduciendo mezcla total...";
 });
 
 // ==========================================
-// 9. EXPORTACIÓN A ARCHIVO WAV
+// 11. EXPORTACIÓN MULTIPISTA A ARCHIVO WAV
 // ==========================================
 botonExportarAudio.addEventListener('click', async () => {
-    if (notasDetectadas.length === 0 && !audioGrabadoBuffer) {
-        return alert("No hay audio ni notas MIDI para exportar.");
+    const pistasAudibles = obtenerPistasAudibles().filter(p => p.notas.length > 0);
+    if (pistasAudibles.length === 0 && !audioGrabadoBuffer) {
+        return alert("No hay audio ni pistas MIDI activas para exportar.");
     }
 
-    estadoGrabacion.innerText = "⏳ Renderizando archivo WAV...";
+    estadoGrabacion.innerText = "⏳ Renderizando WAV multipista...";
     botonExportarAudio.disabled = true;
 
     try {
         let duracionMidi = 0;
-        notasDetectadas.forEach(n => {
-            const finNota = n.startTimeSeconds + n.durationSeconds;
-            if (finNota > duracionMidi) duracionMidi = finNota;
+        pistasAudibles.forEach(pista => {
+            pista.notas.forEach(n => {
+                const finNota = n.startTimeSeconds + n.durationSeconds;
+                if (finNota > duracionMidi) duracionMidi = finNota;
+            });
         });
 
         const duracionMic = audioGrabadoBuffer ? audioGrabadoBuffer.duration : 0;
@@ -670,12 +858,12 @@ botonExportarAudio.addEventListener('click', async () => {
             micSource.start(0);
         }
 
-        if (notasDetectadas.length > 0) {
-            const nombreInstrumento = selectorInstrumentoUsuario.value;
-            const instOffline = await Soundfont.instrument(offlineCtx, nombreInstrumento, { soundfont: 'FluidR3_GM' });
-            notasDetectadas.forEach(nota => {
+        for (const pista of pistasAudibles) {
+            const instOffline = await Soundfont.instrument(offlineCtx, pista.instrumento, { soundfont: 'FluidR3_GM' });
+            pista.notas.forEach(nota => {
                 instOffline.play(nota.pitchMidi, nota.startTimeSeconds, {
                     duration: nota.durationSeconds,
+                    gain: pista.volumen * 1.5,
                     destination: cadenaOffline.entrada
                 });
             });
@@ -687,7 +875,7 @@ botonExportarAudio.addEventListener('click', async () => {
         const url = URL.createObjectURL(wavBlob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `EthnoSynth_Mezcla_${Date.now()}.wav`;
+        link.download = `EthnoSynth_Multipista_${Date.now()}.wav`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -708,19 +896,15 @@ function audioBufferToWav(buffer) {
     const sampleRate = buffer.sampleRate;
     const format = 1;
     const bitDepth = 16;
-
     const bytesPerSample = bitDepth / 8;
     const blockAlign = numChannels * bytesPerSample;
-
     const samples = buffer.length;
     const dataSize = samples * blockAlign;
     const arrayBuffer = new ArrayBuffer(44 + dataSize);
     const view = new DataView(arrayBuffer);
 
     function writeString(offset, string) {
-        for (let i = 0; i < string.length; i++) {
-            view.setUint8(offset + i, string.charCodeAt(i));
-        }
+        for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
     }
 
     writeString(0, 'RIFF');
@@ -738,9 +922,7 @@ function audioBufferToWav(buffer) {
     view.setUint32(40, dataSize, true);
 
     const channels = [];
-    for (let i = 0; i < numChannels; i++) {
-        channels.push(buffer.getChannelData(i));
-    }
+    for (let i = 0; i < numChannels; i++) channels.push(buffer.getChannelData(i));
 
     let offset = 44;
     for (let i = 0; i < samples; i++) {
@@ -751,12 +933,12 @@ function audioBufferToWav(buffer) {
             offset += 2;
         }
     }
-
     return new Blob([arrayBuffer], { type: 'audio/wav' });
 }
 
 // ==========================================
-// 10. INICIALIZACIÓN
+// 12. INICIALIZACIÓN
 // ==========================================
+renderizarListaPistas();
 inicializarPianoVirtual();
 inicializarPianoRoll();
