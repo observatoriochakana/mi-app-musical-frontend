@@ -97,7 +97,7 @@ function cargarInstrumentosEnSelector() {
 }
 cargarInstrumentosEnSelector();
 
-// Actualizar porcentajes visuales de los sliders en todo momento
+// Actualizar porcentajes visuales de los sliders
 if (reverbSlider && valReverb) {
     reverbSlider.addEventListener('input', () => {
         valReverb.innerText = reverbSlider.value;
@@ -258,287 +258,345 @@ btnDetenerMicrofono.addEventListener('click', () => {
 });
 
 btnReproducirMicrofono.addEventListener('click', async () => {
-if (!audioGrabadoBuffer) return;
-inicializarMotorDeAudio();
-if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
-const source = audioContextGlobal.createBufferSource();
-source.buffer = audioGrabadoBuffer;
-source.connect(efectoEntrada);
-source.start(audioContextGlobal.currentTime);
-estadoGrabacion.innerText = "🎧 Reproduciendo solo micrófono...";
+    if (!audioGrabadoBuffer) return;
+    inicializarMotorDeAudio();
+    if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
+
+    const source = audioContextGlobal.createBufferSource();
+    source.buffer = audioGrabadoBuffer;
+    source.connect(efectoEntrada);
+    source.start(audioContextGlobal.currentTime);
+    estadoGrabacion.innerText = "🎧 Reproduciendo solo micrófono...";
 });
+
 if (btnLimpiarMicrofono) {
-btnLimpiarMicrofono.addEventListener('click', () => {
-if (!audioGrabadoBuffer) return;
-if (confirm("¿Borrar la grabación del micrófono?")) {
-audioGrabadoBuffer = null;
-btnReproducirMicrofono.disabled = true;
-estadoGrabacion.innerText = "🗑 Audio del micrófono borrado.";
+    btnLimpiarMicrofono.addEventListener('click', () => {
+        if (!audioGrabadoBuffer) return;
+        if (confirm("¿Borrar la grabación del micrófono?")) {
+            audioGrabadoBuffer = null;
+            btnReproducirMicrofono.disabled = true;
+            estadoGrabacion.innerText = "🗑 Audio del micrófono borrado.";
+        }
+    });
 }
-});
-}
+
 // ==========================================
 // 6. PIANO ROLL Y PIANO VIRTUAL
 // ==========================================
 function inicializarPianoRoll() {
-const container = document.getElementById('pianoRollContainer');
-if (!container) return;
-if (konvaStage) konvaStage.destroy();
-konvaStage = new Konva.Stage({ container: 'pianoRollContainer', width: 3000, height: (finMidi - inicioMidi + 1) * altoFila });
-konvaLayer = new Konva.Layer();
-konvaStage.add(konvaLayer);
-const teclasNegrasIndices =;
-for (let i = 0; i <= (finMidi - inicioMidi); i++) {
-const y = i * altoFila;
-const esTeclaNegra = teclasNegrasIndices.includes((finMidi - i) % 12);
-const rect = new Konva.Rect({ x: 0, y: y, width: 3000, height: altoFila, fill: esTeclaNegra ? '#1a252f' : '#2c3e50', stroke: '#34495e', strokeWidth: 1 });
-konvaLayer.add(rect);
+    const container = document.getElementById('pianoRollContainer');
+    if (!container) return;
+    if (konvaStage) konvaStage.destroy();
+
+    konvaStage = new Konva.Stage({ container: 'pianoRollContainer', width: 3000, height: (finMidi - inicioMidi + 1) * altoFila });
+    konvaLayer = new Konva.Layer();
+    konvaStage.add(konvaLayer);
+
+    const teclasNegrasIndices = [1, 3, 6, 8, 10];
+    for (let i = 0; i <= (finMidi - inicioMidi); i++) {
+        const y = i * altoFila;
+        const esTeclaNegra = teclasNegrasIndices.includes((finMidi - i) % 12);
+        const rect = new Konva.Rect({ x: 0, y: y, width: 3000, height: altoFila, fill: esTeclaNegra ? '#1a252f' : '#2c3e50', stroke: '#34495e', strokeWidth: 1 });
+        konvaLayer.add(rect);
+    }
+
+    konvaStage.on('dblclick dbltap', () => {
+        const pointerPos = konvaStage.getPointerPosition();
+        const tiempo = Math.round(pointerPos.x / pxPorSegundo * 10) / 10;
+        const pitch = finMidi - Math.floor(pointerPos.y / altoFila);
+        notasDetectadas.push({ startTimeSeconds: tiempo, pitchMidi: pitch, durationSeconds: 0.5, amplitude: 1 });
+        actualizarNotasEnPianoRoll();
+    });
+
+    konvaLayer.draw();
 }
-konvaStage.on('dblclick dbltap', () => {
-const pointerPos = konvaStage.getPointerPosition();
-const tiempo = Math.round(pointerPos.x / pxPorSegundo * 10) / 10;
-const pitch = finMidi - Math.floor(pointerPos.y / altoFila);
-notasDetectadas.push({ startTimeSeconds: tiempo, pitchMidi: pitch, durationSeconds: 0.5, amplitude: 1 });
-actualizarNotasEnPianoRoll();
-});
-konvaLayer.draw();
-}
+
 function actualizarNotasEnPianoRoll() {
-if (!konvaLayer) return;
-konvaLayer.find('.nota-rect').forEach(nodo => nodo.destroy());
-notasDetectadas.forEach((nota, index) => {
-const x = nota.startTimeSeconds * pxPorSegundo;
-const ancho = Math.max(10, nota.durationSeconds * pxPorSegundo);
-const y = (finMidi - nota.pitchMidi) * altoFila;
-const rectNota = new Konva.Rect({ x: x, y: y, width: ancho, height: altoFila - 2, fill: '#e74c3c', cornerRadius: 3, opacity: 0.9, draggable: true, name: 'nota-rect' });
-rectNota.on('click', (e) => { e.cancelBubble = true; notasDetectadas.splice(index, 1); actualizarNotasEnPianoRoll(); });
-rectNota.on('dragend', () => { notasDetectadas[index].startTimeSeconds = Math.max(0, rectNota.x() / pxPorSegundo); notasDetectadas[index].pitchMidi = finMidi - Math.round(rectNota.y() / altoFila); });
-konvaLayer.add(rectNota);
-});
-konvaLayer.draw();
+    if (!konvaLayer) return;
+    konvaLayer.find('.nota-rect').forEach(nodo => nodo.destroy());
+
+    notasDetectadas.forEach((nota, index) => {
+        const x = nota.startTimeSeconds * pxPorSegundo;
+        const ancho = Math.max(10, nota.durationSeconds * pxPorSegundo);
+        const y = (finMidi - nota.pitchMidi) * altoFila;
+
+        const rectNota = new Konva.Rect({ x: x, y: y, width: ancho, height: altoFila - 2, fill: '#e74c3c', cornerRadius: 3, opacity: 0.9, draggable: true, name: 'nota-rect' });
+
+        rectNota.on('click', (e) => { e.cancelBubble = true; notasDetectadas.splice(index, 1); actualizarNotasEnPianoRoll(); });
+        rectNota.on('dragend', () => { notasDetectadas[index].startTimeSeconds = Math.max(0, rectNota.x() / pxPorSegundo); notasDetectadas[index].pitchMidi = finMidi - Math.round(rectNota.y() / altoFila); });
+
+        konvaLayer.add(rectNota);
+    });
+    konvaLayer.draw();
 }
+
 function inicializarPianoVirtual() {
-if (!pianoVirtualContainer) return;
-pianoVirtualContainer.innerHTML = '';
-const wrapper = document.getElementById('pianoKeysWrapper');
-const notasBlancas =;
-let contadorTeclasBlancas = 0;
-for (let i = inicioMidi; i <= finMidi; i++) {
-if (notasBlancas.includes(i % 12)) {
-const tecla = document.createElement('div');
-tecla.className = 'tecla-blanca';
-tecla.innerText = i;
-tecla.dataset.midi = i;
-tecla.addEventListener('pointerdown', (e) => { e.preventDefault(); presionarTecla(i); });
-tecla.addEventListener('pointerup', (e) => { e.preventDefault(); soltarTecla(i); });
-tecla.addEventListener('pointerleave', (e) => { e.preventDefault(); soltarTecla(i); });
-wrapper.appendChild(tecla);
-contadorTeclasBlancas++;
-const siguienteNota = i + 1;
-if (siguienteNota <= finMidi && !notasBlancas.includes(siguienteNota % 12)) {
-const teclaNegra = document.createElement('div');
-teclaNegra.className = 'tecla-negra';
-teclaNegra.dataset.midi = siguienteNota;
-teclaNegra.style.left = (contadorTeclasBlancas * anchoTeclaBlanca - 15) + 'px';
-teclaNegra.addEventListener('pointerdown', (e) => { e.preventDefault(); presionarTecla(siguienteNota); });
-teclaNegra.addEventListener('pointerup', (e) => { e.preventDefault(); soltarTecla(siguienteNota); });
-teclaNegra.addEventListener('pointerleave', (e) => { e.preventDefault(); soltarTecla(siguienteNota); });
-wrapper.appendChild(teclaNegra);
+    if (!pianoVirtualContainer) return;
+    pianoVirtualContainer.innerHTML = '<div class="piano-keys-wrapper" id="pianoKeysWrapper"></div>';
+    const wrapper = document.getElementById('pianoKeysWrapper');
+    const notasBlancas = [0, 2, 4, 5, 7, 9, 11];
+    let contadorTeclasBlancas = 0;
+
+    for (let i = inicioMidi; i <= finMidi; i++) {
+        if (notasBlancas.includes(i % 12)) {
+            const tecla = document.createElement('div');
+            tecla.className = 'tecla-blanca';
+            tecla.innerText = i;
+            tecla.dataset.midi = i;
+
+            tecla.addEventListener('pointerdown', (e) => { e.preventDefault(); presionarTecla(i); });
+            tecla.addEventListener('pointerup', (e) => { e.preventDefault(); soltarTecla(i); });
+            tecla.addEventListener('pointerleave', (e) => { e.preventDefault(); soltarTecla(i); });
+
+            wrapper.appendChild(tecla);
+            contadorTeclasBlancas++;
+
+            const siguienteNota = i + 1;
+            if (siguienteNota <= finMidi && !notasBlancas.includes(siguienteNota % 12)) {
+                const teclaNegra = document.createElement('div');
+                teclaNegra.className = 'tecla-negra';
+                teclaNegra.dataset.midi = siguienteNota;
+                teclaNegra.style.left = (contadorTeclasBlancas * anchoTeclaBlanca - 15) + 'px';
+
+                teclaNegra.addEventListener('pointerdown', (e) => { e.preventDefault(); presionarTecla(siguienteNota); });
+                teclaNegra.addEventListener('pointerup', (e) => { e.preventDefault(); soltarTecla(siguienteNota); });
+                teclaNegra.addEventListener('pointerleave', (e) => { e.preventDefault(); soltarTecla(siguienteNota); });
+
+                wrapper.appendChild(teclaNegra);
+            }
+        }
+    }
+
+    document.addEventListener('pointerup', () => {
+        Object.keys(notasActivas).forEach(pitch => {
+            soltarTecla(parseInt(pitch));
+        });
+    });
 }
-}
-}
-document.addEventListener('pointerup', () => {
-Object.keys(notasActivas).forEach(pitch => {
-soltarTecla(parseInt(pitch));
-});
-});
-}
+
 async function presionarTecla(pitchMidi) {
-inicializarMotorDeAudio();
-if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
-const tecla = document.querySelector([data-midi="${pitchMidi}"]);
-if (tecla) tecla.classList.add('pressed');
-tocarInstrumento(pitchMidi, 0.5, 0);
-if (grabando) {
-const tiempoActual = (Date.now() - tiempoInicioGrabacion) / 1000;
-notasActivas[pitchMidi] = { inicio: tiempoActual, pitch: pitchMidi };
+    inicializarMotorDeAudio();
+    if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
+
+    const tecla = document.querySelector(`[data-midi="${pitchMidi}"]`);
+    if (tecla) tecla.classList.add('pressed');
+
+    tocarInstrumento(pitchMidi, 0.5, 0);
+
+    if (grabando) {
+        const tiempoActual = (Date.now() - tiempoInicioGrabacion) / 1000;
+        notasActivas[pitchMidi] = { inicio: tiempoActual, pitch: pitchMidi };
+    }
 }
-}
+
 function soltarTecla(pitchMidi) {
-const tecla = document.querySelector([data-midi="${pitchMidi}"]);
-if (tecla) tecla.classList.remove('pressed');
-if (!grabando || !notasActivas[pitchMidi]) return;
-const tiempoActual = (Date.now() - tiempoInicioGrabacion) / 1000;
-const duracion = Math.max(0.1, tiempoActual - notasActivas[pitchMidi].inicio);
-notasDetectadas.push({ startTimeSeconds: notasActivas[pitchMidi].inicio, durationSeconds: duracion, pitchMidi: pitchMidi, amplitude: 1 });
-delete notasActivas[pitchMidi];
-actualizarNotasEnPianoRoll();
+    const tecla = document.querySelector(`[data-midi="${pitchMidi}"]`);
+    if (tecla) tecla.classList.remove('pressed');
+
+    if (!grabando || !notasActivas[pitchMidi]) return;
+    const tiempoActual = (Date.now() - tiempoInicioGrabacion) / 1000;
+    const duracion = Math.max(0.1, tiempoActual - notasActivas[pitchMidi].inicio);
+    notasDetectadas.push({ startTimeSeconds: notasActivas[pitchMidi].inicio, durationSeconds: duracion, pitchMidi: pitchMidi, amplitude: 1 });
+    delete notasActivas[pitchMidi];
+    actualizarNotasEnPianoRoll();
 }
+
 // ==========================================
 // 7. LÓGICA DE LOS BOTONES DE OCTAVA
 // ==========================================
 if (btnOctavaSubir) {
-btnOctavaSubir.addEventListener('click', () => {
-pianoVirtualContainer.scrollBy({ left: anchoTeclaBlanca * 7, behavior: 'smooth' });
-});
+    btnOctavaSubir.addEventListener('click', () => {
+        pianoVirtualContainer.scrollBy({ left: anchoTeclaBlanca * 7, behavior: 'smooth' });
+    });
 }
+
 if (btnOctavaBajar) {
-btnOctavaBajar.addEventListener('click', () => {
-pianoVirtualContainer.scrollBy({ left: -anchoTeclaBlanca * 7, behavior: 'smooth' });
-});
+    btnOctavaBajar.addEventListener('click', () => {
+        pianoVirtualContainer.scrollBy({ left: -anchoTeclaBlanca * 7, behavior: 'smooth' });
+    });
 }
+
 // ==========================================
 // 8. CONTROLES DE REPRODUCCIÓN SINCRONIZADA
 // ==========================================
 botonGrabarPiano.addEventListener('click', () => {
-grabando = true;
-tiempoInicioGrabacion = Date.now();
-estadoGrabacion.innerText = "🔴 Grabando MIDI...";
-botonGrabarPiano.disabled = true;
-botonDetenerGrabacion.disabled = false;
+    grabando = true;
+    tiempoInicioGrabacion = Date.now();
+    estadoGrabacion.innerText = "🔴 Grabando MIDI...";
+    botonGrabarPiano.disabled = true;
+    botonDetenerGrabacion.disabled = false;
 });
+
 botonDetenerGrabacion.addEventListener('click', () => {
-grabando = false;
-estadoGrabacion.innerText = "⏹️ Grabación MIDI detenida.";
-botonGrabarPiano.disabled = false;
-botonDetenerGrabacion.disabled = true;
+    grabando = false;
+    estadoGrabacion.innerText = "⏹️ Grabación MIDI detenida.";
+    botonGrabarPiano.disabled = false;
+    botonDetenerGrabacion.disabled = true;
 });
+
 botonLimpiar.addEventListener('click', () => {
-if (confirm("¿Borrar todas las notas MIDI?")) {
-notasDetectadas = [];
-actualizarNotasEnPianoRoll();
-estadoGrabacion.innerText = "🗑 Pista MIDI limpiada.";
-}
+    if (confirm("¿Borrar todas las notas MIDI?")) {
+        notasDetectadas = [];
+        actualizarNotasEnPianoRoll();
+        estadoGrabacion.innerText = "🗑 Pista MIDI limpiada.";
+    }
 });
+
 // Reproducción sincronizada: Micrófono + MIDI al mismo tiempo exacto
 botonReproducirMelodia.addEventListener('click', async () => {
-if (notasDetectadas.length === 0 && !audioGrabadoBuffer) {
-return alert("Graba audio con el micrófono o dibuja/graba notas MIDI primero.");
-}
-inicializarMotorDeAudio();
-if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
-const nombreInstrumento = selectorInstrumentoUsuario.value;
-let instrumento = null;
-if (notasDetectadas.length > 0) {
-estadoGrabacion.innerText = "⏳ Preparando pistas sincronizadas...";
-instrumento = await obtenerInstrumento(audioContextGlobal, nombreInstrumento);
-}
-const tiempoArranque = audioContextGlobal.currentTime + 0.1;
-if (audioGrabadoBuffer) {
-const source = audioContextGlobal.createBufferSource();
-source.buffer = audioGrabadoBuffer;
-source.connect(efectoEntrada);
-source.start(tiempoArranque);
-}
-if (instrumento && notasDetectadas.length > 0) {
-notasDetectadas.forEach(nota => {
-instrumento.play(nota.pitchMidi, tiempoArranque + nota.startTimeSeconds, {
-duration: nota.durationSeconds,
-destination: efectoEntrada
+    if (notasDetectadas.length === 0 && !audioGrabadoBuffer) {
+        return alert("Graba audio con el micrófono o dibuja/graba notas MIDI primero.");
+    }
+
+    inicializarMotorDeAudio();
+    if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
+
+    const nombreInstrumento = selectorInstrumentoUsuario.value;
+    let instrumento = null;
+
+    if (notasDetectadas.length > 0) {
+        estadoGrabacion.innerText = "⏳ Preparando pistas sincronizadas...";
+        instrumento = await obtenerInstrumento(audioContextGlobal, nombreInstrumento);
+    }
+
+    const tiempoArranque = audioContextGlobal.currentTime + 0.1;
+
+    if (audioGrabadoBuffer) {
+        const source = audioContextGlobal.createBufferSource();
+        source.buffer = audioGrabadoBuffer;
+        source.connect(efectoEntrada);
+        source.start(tiempoArranque);
+    }
+
+    if (instrumento && notasDetectadas.length > 0) {
+        notasDetectadas.forEach(nota => {
+            instrumento.play(nota.pitchMidi, tiempoArranque + nota.startTimeSeconds, {
+                duration: nota.durationSeconds,
+                destination: efectoEntrada
+            });
+        });
+    }
+
+    estadoGrabacion.innerText = "▶️ Reproduciendo mezcla (Mic + MIDI)...";
 });
-});
-}
-estadoGrabacion.innerText = "▶️ Reproduciendo mezcla (Mic + MIDI)...";
-});
+
 // ==========================================
 // 9. EXPORTACIÓN A ARCHIVO WAV
 // ==========================================
 botonExportarAudio.addEventListener('click', async () => {
-if (notasDetectadas.length === 0 && !audioGrabadoBuffer) {
-return alert("No hay audio ni notas MIDI para exportar.");
-}
-estadoGrabacion.innerText = "⏳ Renderizando archivo WAV...";
-botonExportarAudio.disabled = true;
-try {
-let duracionMidi = 0;
-notasDetectadas.forEach(n => {
-const finNota = n.startTimeSeconds + n.durationSeconds;
-if (finNota > duracionMidi) duracionMidi = finNota;
+    if (notasDetectadas.length === 0 && !audioGrabadoBuffer) {
+        return alert("No hay audio ni notas MIDI para exportar.");
+    }
+
+    estadoGrabacion.innerText = "⏳ Renderizando archivo WAV...";
+    botonExportarAudio.disabled = true;
+
+    try {
+        let duracionMidi = 0;
+        notasDetectadas.forEach(n => {
+            const finNota = n.startTimeSeconds + n.durationSeconds;
+            if (finNota > duracionMidi) duracionMidi = finNota;
+        });
+
+        const duracionMic = audioGrabadoBuffer ? audioGrabadoBuffer.duration : 0;
+        const duracionTotal = Math.max(duracionMidi, duracionMic, 1) + 2.5;
+        const sampleRate = 44100;
+
+        const offlineCtx = new OfflineAudioContext(2, Math.ceil(sampleRate * duracionTotal), sampleRate);
+        const cadenaOffline = construirCadenaEfectos(offlineCtx, offlineCtx.destination);
+
+        if (audioGrabadoBuffer) {
+            const micSource = offlineCtx.createBufferSource();
+            micSource.buffer = audioGrabadoBuffer;
+            micSource.connect(cadenaOffline.entrada);
+            micSource.start(0);
+        }
+
+        if (notasDetectadas.length > 0) {
+            const nombreInstrumento = selectorInstrumentoUsuario.value;
+            const instOffline = await Soundfont.instrument(offlineCtx, nombreInstrumento, { soundfont: 'FluidR3_GM' });
+            notasDetectadas.forEach(nota => {
+                instOffline.play(nota.pitchMidi, nota.startTimeSeconds, {
+                    duration: nota.durationSeconds,
+                    destination: cadenaOffline.entrada
+                });
+            });
+        }
+
+        const renderedBuffer = await offlineCtx.startRendering();
+        const wavBlob = audioBufferToWav(renderedBuffer);
+
+        const url = URL.createObjectURL(wavBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `EthnoSynth_Mezcla_${Date.now()}.wav`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        estadoGrabacion.innerText = "💾 ¡Archivo WAV exportado!";
+    } catch (error) {
+        console.error("Error al exportar WAV:", error);
+        estadoGrabacion.innerText = "❌ Error al exportar WAV.";
+        alert("Hubo un error al generar el WAV.");
+    } finally {
+        botonExportarAudio.disabled = false;
+    }
 });
-const duracionMic = audioGrabadoBuffer ? audioGrabadoBuffer.duration : 0;
-const duracionTotal = Math.max(duracionMidi, duracionMic, 1) + 2.5;
-const sampleRate = 44100;
-const offlineCtx = new OfflineAudioContext(2, Math.ceil(sampleRate * duracionTotal), sampleRate);
-const cadenaOffline = construirCadenaEfectos(offlineCtx, offlineCtx.destination);
-if (audioGrabadoBuffer) {
-const micSource = offlineCtx.createBufferSource();
-micSource.buffer = audioGrabadoBuffer;
-micSource.connect(cadenaOffline.entrada);
-micSource.start(0);
-}
-if (notasDetectadas.length > 0) {
-const nombreInstrumento = selectorInstrumentoUsuario.value;
-const instOffline = await Soundfont.instrument(offlineCtx, nombreInstrumento, { soundfont: 'FluidR3_GM' });
-notasDetectadas.forEach(nota => {
-instOffline.play(nota.pitchMidi, nota.startTimeSeconds, {
-duration: nota.durationSeconds,
-destination: cadenaOffline.entrada
-});
-});
-}
-const renderedBuffer = await offlineCtx.startRendering();
-const wavBlob = audioBufferToWav(renderedBuffer);
-const url = URL.createObjectURL(wavBlob);
-const link = document.createElement('a');
-link.href = url;
-link.download = EthnoSynth_Mezcla_${Date.now()}.wav;
-document.body.appendChild(link);
-link.click();
-document.body.removeChild(link);
-URL.revokeObjectURL(url);
-estadoGrabacion.innerText = "💾 ¡Archivo WAV exportado!";
-} catch (error) {
-console.error("Error al exportar WAV:", error);
-estadoGrabacion.innerText = "❌ Error al exportar WAV.";
-alert("Hubo un error al generar el WAV.");
-} finally {
-botonExportarAudio.disabled = false;
-}
-});
+
 function audioBufferToWav(buffer) {
-const numChannels = buffer.numberOfChannels;
-const sampleRate = buffer.sampleRate;
-const format = 1;
-const bitDepth = 16;
-const bytesPerSample = bitDepth / 8;
-const blockAlign = numChannels * bytesPerSample;
-const samples = buffer.length;
-const dataSize = samples * blockAlign;
-const arrayBuffer = new ArrayBuffer(44 + dataSize);
-const view = new DataView(arrayBuffer);
-function writeString(offset, string) {
-for (let i = 0; i < string.length; i++) {
-view.setUint8(offset + i, string.charCodeAt(i));
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const format = 1;
+    const bitDepth = 16;
+
+    const bytesPerSample = bitDepth / 8;
+    const blockAlign = numChannels * bytesPerSample;
+
+    const samples = buffer.length;
+    const dataSize = samples * blockAlign;
+    const arrayBuffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(arrayBuffer);
+
+    function writeString(offset, string) {
+        for (let i = 0; i < string.length; i++) {
+            view.setUint8(offset + i, string.charCodeAt(i));
+        }
+    }
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, format, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitDepth, true);
+    writeString(36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    const channels = [];
+    for (let i = 0; i < numChannels; i++) {
+        channels.push(buffer.getChannelData(i));
+    }
+
+    let offset = 44;
+    for (let i = 0; i < samples; i++) {
+        for (let channel = 0; channel < numChannels; channel++) {
+            let sample = Math.max(-1, Math.min(1, channels[channel][i]));
+            sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+            view.setInt16(offset, sample, true);
+            offset += 2;
+        }
+    }
+
+    return new Blob([arrayBuffer], { type: 'audio/wav' });
 }
-}
-writeString(0, 'RIFF');
-view.setUint32(4, 36 + dataSize, true);
-writeString(8, 'WAVE');
-writeString(12, 'fmt ');
-view.setUint32(16, 16, true);
-view.setUint16(20, format, true);
-view.setUint16(22, numChannels, true);
-view.setUint32(24, sampleRate, true);
-view.setUint32(28, sampleRate * blockAlign, true);
-view.setUint16(32, blockAlign, true);
-view.setUint16(34, bitDepth, true);
-writeString(36, 'data');
-view.setUint32(40, dataSize, true);
-const channels = [];
-for (let i = 0; i < numChannels; i++) {
-channels.push(buffer.getChannelData(i));
-}
-let offset = 44;
-for (let i = 0; i < samples; i++) {
-for (let channel = 0; channel < numChannels; channel++) {
-let sample = Math.max(-1, Math.min(1, channels[channel][i]));
-sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-view.setInt16(offset, sample, true);
-offset += 2;
-}
-}
-return new Blob([arrayBuffer], { type: 'audio/wav' });
-}
+
 // ==========================================
 // 10. INICIALIZACIÓN
 // ==========================================
