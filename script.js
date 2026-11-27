@@ -30,6 +30,14 @@ const btnLimpiarMicrofono = document.getElementById('btnLimpiarMicrofono');
 const btnOctavaBajar = document.getElementById('btnOctavaBajar');
 const btnOctavaSubir = document.getElementById('btnOctavaSubir');
 
+// Elementos y Estado de Tempo / Metrónomo
+const inputBpm = document.getElementById('inputBpm');
+const btnMetronomo = document.getElementById('btnMetronomo');
+let bpmActual = 120;
+let metronomoActivo = false;
+let intervaloMetronomo = null;
+let pulsoActual = 0;
+
 // Variables de Estado MIDI
 let notasDetectadas = [];
 let grabando = false;
@@ -176,6 +184,84 @@ function inicializarMotorDeAudio() {
             cadena.delayGain.gain.value = parseInt(delaySlider.value) / 100;
         });
     }
+}
+
+// ==========================================
+// 3.5. METRÓNOMO Y CONTROL DE BPM
+// ==========================================
+function tocarClicMetronomo(esTiempoFuerte) {
+    if (!audioContextGlobal) inicializarMotorDeAudio();
+    if (audioContextGlobal.state === 'suspended') audioContextGlobal.resume();
+
+    const osc = audioContextGlobal.createOscillator();
+    const gain = audioContextGlobal.createGain();
+
+    // Tiempo 1 más agudo (1000 Hz), tiempos 2, 3 y 4 más graves (600 Hz)
+    osc.frequency.value = esTiempoFuerte ? 1000 : 600;
+    osc.type = 'triangle';
+
+    const ahora = audioContextGlobal.currentTime;
+    gain.gain.setValueAtTime(0.35, ahora);
+    gain.gain.exponentialRampToValueAtTime(0.001, ahora + 0.06);
+
+    osc.connect(gain);
+    gain.connect(masterGain); // Va directo al master (sin reverb ni delay)
+
+    osc.start(ahora);
+    osc.stop(ahora + 0.06);
+}
+
+function iniciarMetronomo() {
+    detenerMetronomo();
+    pulsoActual = 0;
+    const msPorPulso = (60 / bpmActual) * 1000;
+
+    // Primer clic inmediato
+    tocarClicMetronomo(true);
+    pulsoActual = 1;
+
+    intervaloMetronomo = setInterval(() => {
+        tocarClicMetronomo(pulsoActual % 4 === 0);
+        pulsoActual++;
+    }, msPorPulso);
+}
+
+function detenerMetronomo() {
+    if (intervaloMetronomo) {
+        clearInterval(intervaloMetronomo);
+        intervaloMetronomo = null;
+    }
+}
+
+if (btnMetronomo) {
+    btnMetronomo.addEventListener('click', () => {
+        metronomoActivo = !metronomoActivo;
+        if (metronomoActivo) {
+            btnMetronomo.innerText = '⏱️ Metrónomo: ON';
+            btnMetronomo.style.backgroundColor = 'var(--accent-blue)';
+            iniciarMetronomo();
+        } else {
+            btnMetronomo.innerText = '⏱️ Metrónomo: OFF';
+            btnMetronomo.style.backgroundColor = '#2d2d2d';
+            detenerMetronomo();
+        }
+    });
+}
+
+if (inputBpm) {
+    inputBpm.addEventListener('change', () => {
+        let nuevoBpm = parseInt(inputBpm.value);
+        if (isNaN(nuevoBpm) || nuevoBpm < 40) nuevoBpm = 40;
+        if (nuevoBpm > 240) nuevoBpm = 240;
+        inputBpm.value = nuevoBpm;
+        bpmActual = nuevoBpm;
+
+        // Reiniciar metrónomo al nuevo tempo si está encendido
+        if (metronomoActivo) iniciarMetronomo();
+        // Redibujar rejilla con los nuevos tiempos
+        inicializarPianoRoll();
+        actualizarNotasEnPianoRoll();
+    });
 }
 
 // ==========================================
@@ -333,16 +419,40 @@ function inicializarPianoRoll() {
     if (!container) return;
     if (konvaStage) konvaStage.destroy();
 
-    konvaStage = new Konva.Stage({ container: 'pianoRollContainer', width: 3000, height: (finMidi - inicioMidi + 1) * altoFila });
+    const anchoTotal = 3000;
+    const altoTotal = (finMidi - inicioMidi + 1) * altoFila;
+
+    konvaStage = new Konva.Stage({ container: 'pianoRollContainer', width: anchoTotal, height: altoTotal });
     konvaLayer = new Konva.Layer();
     konvaStage.add(konvaLayer);
 
-    const teclasNegrasIndices = [1, 3, 6, 8, 10];
+    // 1. Filas horizontales (notas)
+    const teclasNegrasIndices =;
     for (let i = 0; i <= (finMidi - inicioMidi); i++) {
         const y = i * altoFila;
         const esTeclaNegra = teclasNegrasIndices.includes((finMidi - i) % 12);
-        const rect = new Konva.Rect({ x: 0, y: y, width: 3000, height: altoFila, fill: esTeclaNegra ? '#1a252f' : '#2c3e50', stroke: '#34495e', strokeWidth: 1 });
+        const rect = new Konva.Rect({ 
+            x: 0, y: y, width: anchoTotal, height: altoFila, 
+            fill: esTeclaNegra ? '#1a252f' : '#2c3e50', 
+            stroke: '#34495e', strokeWidth: 0.5 
+        });
         konvaLayer.add(rect);
+    }
+
+    // 2. Líneas verticales según BPM (pulsos y compases)
+    const segundosPorPulso = 60 / bpmActual;
+    const pxPorPulso = segundosPorPulso * pxPorSegundo;
+    const totalPulsos = Math.floor(anchoTotal / pxPorPulso);
+
+    for (let p = 0; p <= totalPulsos; p++) {
+        const x = p * pxPorPulso;
+        const esInicioCompas = p % 4 === 0;
+        const linea = new Konva.Line({
+            points: [x, 0, x, altoTotal],
+            stroke: esInicioCompas ? '#7f8c8d' : '#3d566e',
+            strokeWidth: esInicioCompas ? 1.5 : 0.8
+        });
+        konvaLayer.add(linea);
     }
 
     konvaStage.on('dblclick dbltap', () => {
@@ -355,6 +465,7 @@ function inicializarPianoRoll() {
 
     konvaLayer.draw();
 }
+
 
 function actualizarNotasEnPianoRoll() {
     if (!konvaLayer) return;
