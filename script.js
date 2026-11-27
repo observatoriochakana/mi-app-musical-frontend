@@ -121,17 +121,20 @@ estilos_musicales: [
 ]
 };
 // 3. ESCALAS ÉTNICAS Y MICROTONALES (Desviaciones en Cents respecto a 12-TET)
+const toScaleSet = str => new Set(str.split(",").map(Number));
+
 const SCALES_MAP = {
-  "Cromática": { intervals:, cents: {} },
-  "Pentatónica Menor": { intervals:, cents: {} },
-  "Pentatónica Mayor": { intervals:, cents: {} },
-  "Mixolidia": { intervals:, cents: {} },
-  "Dórica": { intervals:, cents: {} },
-  "Frigia": { intervals:, cents: {} },
-  "Maqam Hijaz": { intervals:, cents: { 1: -15, 4: +10, 8: -10 } },
-  "Raga Bhairav": { intervals:, cents: { 1: -20, 8: -15 } },
-  "Pelog": { intervals:, cents: { 1: +25, 3: -18, 8: +15 } }
+  "Cromática": { intervals: toScaleSet("0,1,2,3,4,5,6,7,8,9,10,11"), cents: {} },
+  "Pentatónica Menor": { intervals: toScaleSet("0,3,5,7,10"), cents: {} },
+  "Pentatónica Mayor": { intervals: toScaleSet("0,2,4,7,9"), cents: {} },
+  "Mixolidia": { intervals: toScaleSet("0,2,4,5,7,9,10"), cents: {} },
+  "Dórica": { intervals: toScaleSet("0,2,3,5,7,9,10"), cents: {} },
+  "Frigia": { intervals: toScaleSet("0,1,3,5,7,8,10"), cents: {} },
+  "Maqam Hijaz": { intervals: toScaleSet("0,1,4,5,7,8,10"), cents: { 1: -15, 4: 10, 8: -10 } },
+  "Raga Bhairav": { intervals: toScaleSet("0,1,4,5,7,8,11"), cents: { 1: -20, 8: -15 } },
+  "Pelog": { intervals: toScaleSet("0,1,3,7,8"), cents: { 1: 25, 3: -18, 8: 15 } }
 };
+
 
 // 4. ESTADO GLOBAL DEL ESTUDIO DAW
 let state = {
@@ -751,7 +754,7 @@ const semitone = midi % 12;
 const oct = Math.floor(midi / 12) - 1;
 const label = `${noteNames[semitone]}${oct}`;
 
-const inScale = scaleObj.intervals.includes(semitone);
+const inScale = scaleObj.intervals.has(semitone);
 const y = r * cellH;
 // Tecla izquierda
 const keyRect = new Konva.Rect({
