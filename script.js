@@ -75,49 +75,57 @@ const I18N = {
 // 2. SEED DATA INTEGRADO (30 INSTRUMENTOS + 11 ESTILOS MUSICALES)
 const DEFAULT_SEED_DATA = {
   instrumentos: [
-    { id: 1, nombre: "Trompe (Arpa de Boca)", categoria: "Aborígenes", origen_cultural: "Mapuche / Sur de Chile", nota_raiz: "D3", timbre: "jawharp", envolvente_adsr: { attack: 0.01, decay: 0.25, sustain: 0.6, release: 0.3 }, descripcion_corta: "Idiófono metálico de armónicos vibrantes, ideal para ritmos hipnóticos y funk psicodélico." },
-    { id: 2, nombre: "Kultrún", categoria: "Aborígenes", origen_cultural: "Mapuche / Chile-Argentina", nota_raiz: "G2", timbre: "drum_deep", envolvente_adsr: { attack: 0.005, decay: 0.35, sustain: 0.1, release: 0.4 }, descripcion_corta: "Tambor ceremonial de madera y cuero con resonancia profunda y terrosa." },
-    { id: 3, nombre: "Trutruka", categoria: "Aborígenes", origen_cultural: "Mapuche / Sur de Chile", nota_raiz: "C3", timbre: "horn_drone", envolvente_adsr: { attack: 0.08, decay: 0.2, sustain: 0.85, release: 0.5 }, descripcion_corta: "Aerófono largo de caña con sonido potente, grave y expresivo." },
-    { id: 4, nombre: "Metawe (Cántaro Ceremonial)", categoria: "Aborígenes", origen_cultural: "Mapuche / Sur de Chile", nota_raiz: "G2", timbre: "udu_pot", envolvente_adsr: { attack: 0.008, decay: 0.38, sustain: 0.12, release: 0.3 }, descripcion_corta: "Cántaro de greda ancestral usado como percusión acuática y resonancia terrosa." },
-    { id: 5, nombre: "Pifilka", categoria: "Aborígenes", origen_cultural: "Mapuche / Chile-Argentina", nota_raiz: "E5", timbre: "flute_breath", envolvente_adsr: { attack: 0.02, decay: 0.1, sustain: 0.85, release: 0.15 }, descripcion_corta: "Silbato ceremonial de madera tallada con sonido agudo, penetrante y ritual." },
-    { id: 6, nombre: "Quena", categoria: "Étnicos", origen_cultural: "Andino (Perú, Bolivia, Chile)", nota_raiz: "G4", timbre: "flute_breath", envolvente_adsr: { attack: 0.04, decay: 0.15, sustain: 0.85, release: 0.25 }, descripcion_corta: "Flauta vertical de caña o hueso con timbre cálido, aireado y melancólico." },
-    { id: 7, nombre: "Zampoña (Siku)", categoria: "Étnicos", origen_cultural: "Altiplano Andino", nota_raiz: "E4", timbre: "flute_breath", envolvente_adsr: { attack: 0.03, decay: 0.2, sustain: 0.8, release: 0.3 }, descripcion_corta: "Flauta de pan de doble hilera con ataque soplado característico." },
-    { id: 8, nombre: "Charango", categoria: "Tradicionales", origen_cultural: "Andino", nota_raiz: "E4", timbre: "pluck_bright", envolvente_adsr: { attack: 0.005, decay: 0.4, sustain: 0.2, release: 0.35 }, descripcion_corta: "Instrumento de 10 cuerdas con timbre brillante y percusivo." },
-    { id: 9, nombre: "Bombo Legüero", categoria: "Tradicionales", origen_cultural: "Folclore Argentino / Norte de Chile", nota_raiz: "E2", timbre: "drum_deep", envolvente_adsr: { attack: 0.004, decay: 0.42, sustain: 0.08, release: 0.35 }, descripcion_corta: "Tambor tradicional de tronco hueco y parche de cuero con grave profundo." },
-    { id: 10, nombre: "Ocarina de Barro", categoria: "Étnicos", origen_cultural: "Mesoamérica / Andino", nota_raiz: "C5", timbre: "flute_warm", envolvente_adsr: { attack: 0.03, decay: 0.15, sustain: 0.85, release: 0.25 }, descripcion_corta: "Flauta globular ancestral de arcilla con timbre dulce y evocador." },
-    { id: 11, nombre: "Cuatro Venezolano", categoria: "Tradicionales", origen_cultural: "Venezuela / Colombia", nota_raiz: "A3", timbre: "pluck_bright", envolvente_adsr: { attack: 0.004, decay: 0.35, sustain: 0.2, release: 0.3 }, descripcion_corta: "Guitarra pequeña de cuatro cuerdas con ataque rítmico brillante." },
-    { id: 12, nombre: "Didgeridoo", categoria: "Aborígenes", origen_cultural: "Aborigen Australiano", nota_raiz: "C2", timbre: "horn_drone", envolvente_adsr: { attack: 0.06, decay: 0.3, sustain: 0.9, release: 0.6 }, descripcion_corta: "Trompeta natural de eucalipto con bordón grave continuo y ricos armónicos." },
-    { id: 13, nombre: "Kalimba (Mbira)", categoria: "Étnicos", origen_cultural: "África Subsahariana", nota_raiz: "C4", timbre: "kalimba_bell", envolvente_adsr: { attack: 0.002, decay: 0.5, sustain: 0.15, release: 0.45 }, descripcion_corta: "Piano de pulgar con lengüetas metálicas de sonido dulce y cristalino." },
-    { id: 14, nombre: "Djembe", categoria: "Étnicos", origen_cultural: "África Occidental", nota_raiz: "A2", timbre: "drum_slap", envolvente_adsr: { attack: 0.003, decay: 0.28, sustain: 0.05, release: 0.25 }, descripcion_corta: "Tambor de copa tallado en madera con graves profundos y galletas agudas." },
-    { id: 15, nombre: "Balafón", categoria: "Étnicos", origen_cultural: "África Occidental (Malí)", nota_raiz: "C4", timbre: "kalimba_bell", envolvente_adsr: { attack: 0.004, decay: 0.45, sustain: 0.15, release: 0.35 }, descripcion_corta: "Xilófono tradicional africano con resonadores de calabaza." },
-{ id: 16, nombre: "Udú (Udu Drum)", categoria: "Étnicos", origen_cultural: "Nigeria (Pueblo Igbo)", nota_raiz: "F2", timbre: "udu_pot", envolvente_adsr: { attack: 0.005, decay: 0.4, sustain: 0.1, release: 0.35 }, descripcion_corta: "Vasija de barro percutida con sonido líquido, grave y resonante." },
-{ id: 17, nombre: "Kora", categoria: "Étnicos", origen_cultural: "África Occidental (Mandinga)", nota_raiz: "F3", timbre: "pluck_warm", envolvente_adsr: { attack: 0.006, decay: 0.5, sustain: 0.25, release: 0.45 }, descripcion_corta: "Arpa-laúd africana de 21 cuerdas con resonancia cristalina." },
-{ id: 18, nombre: "Berimbau", categoria: "Étnicos", origen_cultural: "Afrobrasileño (Bahía)", nota_raiz: "G2", timbre: "jawharp", envolvente_adsr: { attack: 0.01, decay: 0.45, sustain: 0.35, release: 0.4 }, descripcion_corta: "Arco musical de una cuerda con timbre metálico hipnótico." },
-{ id: 19, nombre: "Sitar", categoria: "Étnicos", origen_cultural: "India", nota_raiz: "D3", timbre: "sitar_buzz", envolvente_adsr: { attack: 0.015, decay: 0.6, sustain: 0.45, release: 0.7 }, descripcion_corta: "Laúd clásico indio con cuerdas simpáticas de cola armónica envolvente." },
-{ id: 20, nombre: "Tabla (Baya y Dayan)", categoria: "Étnicos", origen_cultural: "India", nota_raiz: "C3", timbre: "drum_slap", envolvente_adsr: { attack: 0.004, decay: 0.3, sustain: 0.1, release: 0.25 }, descripcion_corta: "Par de tambores de mano capaces de producir tonos melódicos modulables." },
-{ id: 21, nombre: "Koto", categoria: "Étnicos", origen_cultural: "Japón", nota_raiz: "D4", timbre: "pluck_warm", envolvente_adsr: { attack: 0.008, decay: 0.55, sustain: 0.25, release: 0.5 }, descripcion_corta: "Cítara tradicional japonesa de 13 cuerdas con timbre sedoso." },
-{ id: 22, nombre: "Shakuhachi", categoria: "Étnicos", origen_cultural: "Japón", nota_raiz: "D4", timbre: "flute_breath", envolvente_adsr: { attack: 0.06, decay: 0.2, sustain: 0.85, release: 0.35 }, descripcion_corta: "Flauta vertical de bambú con gran expresividad de soplo." },
-{ id: 23, nombre: "Erhu", categoria: "Étnicos", origen_cultural: "China", nota_raiz: "D4", timbre: "bowed_warm", envolvente_adsr: { attack: 0.08, decay: 0.2, sustain: 0.9, release: 0.4 }, descripcion_corta: "Violín tradicional chino de dos cuerdas con timbre cercano a la voz." },
-{ id: 24, nombre: "Duduk", categoria: "Étnicos", origen_cultural: "Armenia / Cáucaso", nota_raiz: "A3", timbre: "flute_warm", envolvente_adsr: { attack: 0.09, decay: 0.2, sustain: 0.9, release: 0.45 }, descripcion_corta: "Instrumento de madera de albaricoque, cálido y vocal." },
-{ id: 25, nombre: "Oud (Laúd Árabe)", categoria: "Tradicionales", origen_cultural: "Medio Oriente / Norte de África", nota_raiz: "D3", timbre: "pluck_warm", envolvente_adsr: { attack: 0.008, decay: 0.5, sustain: 0.3, release: 0.4 }, descripcion_corta: "Laúd sin trastes que permite microtonos y ornamentos expresivos." },
-{ id: 26, nombre: "Hang Drum (Handpan)", categoria: "Étnicos", origen_cultural: "Suiza / Fusión Global", nota_raiz: "D3", timbre: "kalimba_bell", envolvente_adsr: { attack: 0.015, decay: 0.7, sustain: 0.4, release: 0.65 }, descripcion_corta: "Idiófono metálico melódico de armónicos etéreos." },
-{ id: 27, nombre: "Gaita Gallega / Celta", categoria: "Tradicionales", origen_cultural: "Europa Atlántica", nota_raiz: "C4", timbre: "horn_drone", envolvente_adsr: { attack: 0.04, decay: 0.15, sustain: 0.95, release: 0.25 }, descripcion_corta: "Aerófono tradicional de fuelle con timbre potente." },
-{ id: 28, nombre: "Bongó", categoria: "Tradicionales", origen_cultural: "Afrocubano / Caribe", nota_raiz: "C4", timbre: "drum_slap", envolvente_adsr: { attack: 0.002, decay: 0.2, sustain: 0.05, release: 0.18 }, descripcion_corta: "Par de tambores pequeños esenciales para síncopas y funk." },
-{ id: 29, nombre: "Cajón Peruano", categoria: "Tradicionales", origen_cultural: "Afroperuano", nota_raiz: "F2", timbre: "drum_slap", envolvente_adsr: { attack: 0.002, decay: 0.22, sustain: 0.05, release: 0.2 }, descripcion_corta: "Instrumento de percusión de madera con graves secos." },
-{ id: 30, nombre: "Contrabajo Pizzicato", categoria: "Tradicionales", origen_cultural: "Acústico / Jazz", nota_raiz: "E1", timbre: "bass_upright", envolvente_adsr: { attack: 0.01, decay: 0.45, sustain: 0.3, release: 0.35 }, descripcion_corta: "Base grave acústica con cuerpo orgánico." }
-],
-estilos_musicales: [
-{ id: 1, nombre: "Funk Psicodélico Étnico", bpm_base: 105, escala_cuantizacion: "Mixolidia", compas: "4/4", swing_porcentaje: 25, fx_sugeridos: { autowah: true, flanger: true, delay: "1/8d", reverb: "Sala" }, plantilla_pistas: ["Trompe (Arpa de Boca)", "Bongó", "Contrabajo Pizzicato"] },
-{ id: 2, nombre: "Free Jazz Tribal", bpm_base: 148, escala_cuantizacion: "Cromática", compas: "4/4", swing_porcentaje: 15, fx_sugeridos: { autowah: false, flanger: false, delay: "off", reverb: "Cueva" }, plantilla_pistas: ["Bongó", "Contrabajo Pizzicato", "Didgeridoo"] },
-{ id: 3, nombre: "Fusión Andina Electrónica", bpm_base: 118, escala_cuantizacion: "Pentatónica Menor", compas: "4/4", swing_porcentaje: 0, fx_sugeridos: { autowah: false, flanger: true, delay: "1/4", reverb: "Cañón" }, plantilla_pistas: ["Quena", "Charango", "Kultrún"] },
-{ id: 4, nombre: "Trance Aborigen / Ritual", bpm_base: 92, escala_cuantizacion: "Frigia", compas: "6/8", swing_porcentaje: 10, fx_sugeridos: { autowah: true, flanger: false, delay: "1/8", reverb: "Templo" }, plantilla_pistas: ["Didgeridoo", "Kultrún", "Trutruka"] },
-{ id: 5, nombre: "Ambient Orgánico Tiny Desk", bpm_base: 80, escala_cuantizacion: "Dórica", compas: "4/4", swing_porcentaje: 0, fx_sugeridos: { autowah: false, flanger: false, delay: "1/4", reverb: "Sala" }, plantilla_pistas: ["Kalimba (Mbira)", "Koto", "Cajón Peruano"] },
-{ id: 6, nombre: "Afro-Psychedelic Groove", bpm_base: 112, escala_cuantizacion: "Pentatónica Mayor", compas: "4/4", swing_porcentaje: 20, fx_sugeridos: { autowah: true, flanger: true, delay: "1/8d", reverb: "Sala" }, plantilla_pistas: ["Balafón", "Udú (Udu Drum)", "Kora"] },
-{ id: 7, nombre: "Fusión Mapuche-Ambient (Wallmapu)", bpm_base: 76, escala_cuantizacion: "Pentatónica Menor", compas: "6/8", swing_porcentaje: 5, fx_sugeridos: { autowah: false, flanger: false, delay: "1/4", reverb: "Cañón" }, plantilla_pistas: ["Metawe (Cántaro Ceremonial)", "Pifilka", "Trompe (Arpa de Boca)", "Kultrún"] },
-{ id: 8, nombre: "Dub / Reggae Étnico", bpm_base: 84, escala_cuantizacion: "Dórica", compas: "4/4", swing_porcentaje: 18, fx_sugeridos: { autowah: true, flanger: false, delay: "1/8d", reverb: "Templo" }, plantilla_pistas: ["Udú (Udu Drum)", "Kalimba (Mbira)", "Contrabajo Pizzicato"] },
-{ id: 9, nombre: "Jazz Oriental / Maqam Fusión", bpm_base: 126, escala_cuantizacion: "Maqam Hijaz", compas: "7/8", swing_porcentaje: 12, fx_sugeridos: { autowah: false, flanger: false, delay: "1/8", reverb: "Sala" }, plantilla_pistas: ["Oud (Laúd Árabe)", "Duduk", "Tabla (Baya y Dayan)"] },
-{ id: 10, nombre: "Folclore Progresivo Suramericano", bpm_base: 98, escala_cuantizacion: "Pentatónica Menor", compas: "3/4", swing_porcentaje: 8, fx_sugeridos: { autowah: false, flanger: true, delay: "1/4", reverb: "Cañón" }, plantilla_pistas: ["Bombo Legüero", "Charango", "Quena", "Ocarina de Barro"] },
-{ id: 11, nombre: "Celta / Folk Psicodélico", bpm_base: 120, escala_cuantizacion: "Mixolidia", compas: "6/8", swing_porcentaje: 15, fx_sugeridos: { autowah: true, flanger: true, delay: "1/8", reverb: "Cueva" }, plantilla_pistas: ["Gaita Gallega / Celta", "Hang Drum (Handpan)", "Bongó"] }
+        { id: 1, nombre: "Afro-Cuban Electro-Mambo & Bongó", bpm_base: 115, escala_cuantizacion: "Mixolidia", compas: "4/4", swing_porcentaje: 20, fx_sugeridos: { autowah: true, flanger: false, delay: "1/8", reverb: "Sala" }, plantilla_pistas: ["Bongó", "Cuatro Venezolano", "Contrabajo Pizzicato", "Kalimba (Mbira)"] },
+    { id: 2, nombre: "Afro-Dubstep & Kalimba Sub", bpm_base: 140, escala_cuantizacion: "Pentatónica Menor", compas: "4/4", swing_porcentaje: 10, fx_sugeridos: { autowah: true, flanger: true, delay: "1/8d", reverb: "Templo" }, plantilla_pistas: ["Kalimba (Mbira)", "Udú (Udu Drum)", "Djembe", "Contrabajo Pizzicato"] },
+    { id: 3, nombre: "Afro-House & Djembe Club", bpm_base: 123, escala_cuantizacion: "Dórica", compas: "4/4", swing_porcentaje: 16, fx_sugeridos: { autowah: true, flanger: false, delay: "1/8", reverb: "Sala" }, plantilla_pistas: ["Djembe", "Balafón", "Bongó", "Contrabajo Pizzicato"] },
+    { id: 4, nombre: "Afro-Peruvian Electro-Landó (6/8)", bpm_base: 98, escala_cuantizacion: "Dórica", compas: "6/8", swing_porcentaje: 22, fx_sugeridos: { autowah: true, flanger: false, delay: "1/8d", reverb: "Sala" }, plantilla_pistas: ["Cajón Peruano", "Charango", "Quena", "Contrabajo Pizzicato"] },
+    { id: 5, nombre: "Afro-Psychedelic Groove", bpm_base: 112, escala_cuantizacion: "Pentatónica Mayor", compas: "4/4", swing_porcentaje: 20, fx_sugeridos: { autowah: true, flanger: true, delay: "1/8d", reverb: "Sala" }, plantilla_pistas: ["Balafón", "Udú (Udu Drum)", "Kora"] },
+    { id: 6, nombre: "Afro-Tech & Balafón Eléctrico", bpm_base: 125, escala_cuantizacion: "Pentatónica Mayor", compas: "4/4", swing_porcentaje: 14, fx_sugeridos: { autowah: true, flanger: true, delay: "1/8", reverb: "Sala" }, plantilla_pistas: ["Balafón", "Djembe", "Kora", "Contrabajo Pizzicato"] },
+    { id: 7, nombre: "Amazonian Rainforest Downtempo", bpm_base: 88, escala_cuantizacion: "Pentatónica Mayor", compas: "4/4", swing_porcentaje: 14, fx_sugeridos: { autowah: true, flanger: false, delay: "1/8d", reverb: "Cañón" }, plantilla_pistas: ["Ocarina de Barro", "Udú (Udu Drum)", "Kalimba (Mbira)", "Quena"] },
+    { id: 8, nombre: "Ambient Orgánico Tiny Desk", bpm_base: 80, escala_cuantizacion: "Dórica", compas: "4/4", swing_porcentaje: 0, fx_sugeridos: { autowah: false, flanger: false, delay: "1/4", reverb: "Sala" }, plantilla_pistas: ["Kalimba (Mbira)", "Koto", "Cajón Peruano"] },
+    { id: 9, nombre: "Anatolian Psy-Rock & Oud Eléctrico", bpm_base: 114, escala_cuantizacion: "Maqam Hijaz", compas: "4/4", swing_porcentaje: 10, fx_sugeridos: { autowah: true, flanger: true, delay: "1/8d", reverb: "Cueva" }, plantilla_pistas: ["Oud (Laúd Árabe)", "Duduk", "Tabla (Baya y Dayan)", "Contrabajo Pizzicato"] },
+    { id: 10, nombre: "Andean Downtempo / Folktrónica", bpm_base: 96, escala_cuantizacion: "Pentatónica Menor", compas: "4/4", swing_porcentaje: 12, fx_sugeridos: { autowah: false, flanger: true, delay: "1/8d", reverb: "Cañón" }, plantilla_pistas: ["Quena", "Charango", "Bombo Legüero", "Contrabajo Pizzicato"] },
+    { id: 11, nombre: "Asian Chillhop & Shakuhachi", bpm_base: 88, escala_cuantizacion: "Pelog", compas: "4/4", swing_porcentaje: 22, fx_sugeridos: { autowah: false, flanger: false, delay: "1/8", reverb: "Sala" }, plantilla_pistas: ["Shakuhachi", "Koto", "Erhu", "Cajón Peruano"] },
+    { id: 12, nombre: "Atacama Desert Dub & Zampoña", bpm_base: 86, escala_cuantizacion: "Pentatónica Menor", compas: "4/4", swing_porcentaje: 20, fx_sugeridos: { autowah: true, flanger: false, delay: "1/8d", reverb: "Cañón" }, plantilla_pistas: ["Zampoña (Siku)", "Bombo Legüero", "Ocarina de Barro", "Contrabajo Pizzicato"] },
+    { id: 13, nombre: "Aymara Synth-Folk (Altiplano 432Hz)", bpm_base: 108, escala_cuantizacion: "Pentatónica Menor", compas: "4/4", swing_porcentaje: 6, fx_sugeridos: { autowah: false, flanger: true, delay: "1/4", reverb: "Cañón" }, plantilla_pistas: ["Quena", "Zampoña (Siku)", "Charango", "Bombo Legüero"] },
+    { id: 14, nombre: "Balkan Electro-Swing & Gaita", bpm_base: 128, escala_cuantizacion: "Maqam Hijaz", compas: "4/4", swing_porcentaje: 24, fx_sugeridos: { autowah: true, flanger: false, delay: "1/8", reverb: "Sala" }, plantilla_pistas: ["Gaita Gallega / Celta", "Duduk", "Bombo Legüero", "Contrabajo Pizzicato"] },
+    { id: 15, nombre: "Capoeira Electro-Breakbeat", bpm_base: 116, escala_cuantizacion: "Mixolidia", compas: "4/4", swing_porcentaje: 16, fx_sugeridos: { autowah: true, flanger: true, delay: "1/8", reverb: "Cueva" }, plantilla_pistas: ["Berimbau", "Djembe", "Bongó", "Contrabajo Pizzicato"] },
+    { id: 16, nombre: "Celta / Folk Psicodélico", bpm_base: 120, escala_cuantizacion: "Mixolidia", compas: "6/8", swing_porcentaje: 15, fx_sugeridos: { autowah: true, flanger: true, delay: "1/8", reverb: "Cueva" }, plantilla_pistas: ["Gaita Gallega / Celta", "Hang Drum (Handpan)", "Bongó"] },
+    { id: 17, nombre: "Celtic Psy-Trance & Gaita", bpm_base: 136, escala_cuantizacion: "Mixolidia", compas: "6/8", swing_porcentaje: 4, fx_sugeridos: { autowah: true, flanger: true, delay: "1/8d", reverb: "Templo" }, plantilla_pistas: ["Gaita Gallega / Celta", "Trompe (Arpa de Boca)", "Bombo Legüero", "Contrabajo Pizzicato"] },
+    { id: 18, nombre: "Chakana Ceremonial Fusion (All-Star)", bpm_base: 100, escala_cuantizacion: "Pentatónica Menor", compas: "4/4", swing_porcentaje: 10, fx_sugeridos: { autowah: false, flanger: true, delay: "1/8d", reverb: "Cañón" }, plantilla_pistas: ["Quena", "Kultrún", "Hang Drum (Handpan)", "Contrabajo Pizzicato"] },
+    { id: 19, nombre: "Cumbia Digital Psicodélica", bpm_base: 94, escala_cuantizacion: "Dórica", compas: "4/4", swing_porcentaje: 16, fx_sugeridos: { autowah: true, flanger: true, delay: "1/8d", reverb: "Sala" }, plantilla_pistas: ["Zampoña (Siku)", "Bongó", "Cuatro Venezolano", "Contrabajo Pizzicato"] },
+    { id: 20, nombre: "Desert Techno / Maqam Electrónico", bpm_base: 124, escala_cuantizacion: "Maqam Hijaz", compas: "4/4", swing_porcentaje: 6, fx_sugeridos: { autowah: true, flanger: false, delay: "1/8d", reverb: "Templo" }, plantilla_pistas: ["Oud (Laúd Árabe)", "Duduk", "Tabla (Baya y Dayan)", "Contrabajo Pizzicato"] },
+    { id: 21, nombre: "Diaguita Clay & Synth Ritual", bpm_base: 90, escala_cuantizacion: "Pentatónica Menor", compas: "6/8", swing_porcentaje: 10, fx_sugeridos: { autowah: true, flanger: false, delay: "1/8d", reverb: "Cueva" }, plantilla_pistas: ["Metawe (Cántaro Ceremonial)", "Ocarina de Barro", "Pifilka", "Kultrún"] },
+    { id: 22, nombre: "Dub / Reggae Étnico", bpm_base: 84, escala_cuantizacion: "Dórica", compas: "4/4", swing_porcentaje: 18, fx_sugeridos: { autowah: true, flanger: false, delay: "1/8d", reverb: "Templo" }, plantilla_pistas: ["Udú (Udu Drum)", "Kalimba (Mbira)", "Contrabajo Pizzicato"] },
+    { id: 23, nombre: "Electro-Chicha Amazónica", bpm_base: 102, escala_cuantizacion: "Pentatónica Mayor", compas: "4/4", swing_porcentaje: 18, fx_sugeridos: { autowah: true, flanger: true, delay: "1/8d", reverb: "Sala" }, plantilla_pistas: ["Charango", "Bongó", "Cuatro Venezolano", "Contrabajo Pizzicato"] },
+    { id: 24, nombre: "Electro-Cueca & Folk Urbano (6/8)", bpm_base: 118, escala_cuantizacion: "Mixolidia", compas: "6/8", swing_porcentaje: 14, fx_sugeridos: { autowah: true, flanger: true, delay: "1/8", reverb: "Sala" }, plantilla_pistas: ["Cuatro Venezolano", "Charango", "Cajón Peruano", "Contrabajo Pizzicato"] },
+    { id: 25, nombre: "Electro-Wallmapu (Trutruka Bass)", bpm_base: 110, escala_cuantizacion: "Pentatónica Menor", compas: "6/8", swing_porcentaje: 8, fx_sugeridos: { autowah: true, flanger: false, delay: "1/8d", reverb: "Cañón" }, plantilla_pistas: ["Trutruka", "Trompe (Arpa de Boca)", "Kultrún", "Metawe (Cántaro Ceremonial)"] },
+        { id: 26, nombre: "Elqui Cosmic Ambient (432 Hz)", bpm_base: 72, escala_cuantizacion: "Dórica", compas: "4/4", swing_porcentaje: 0, fx_sugeridos: { autowah: false, flanger: true, delay: "1/4", reverb: "Cañón" }, plantilla_pistas: ["Ocarina de Barro", "Hang Drum (Handpan)", "Quena", "Contrabajo Pizzicato"] },
+    { id: 27, nombre: "Folclore Progresivo Suramericano", bpm_base: 98, escala_cuantizacion: "Pentatónica Menor", compas: "3/4", swing_porcentaje: 8, fx_sugeridos: { autowah: false, flanger: true, delay: "1/4", reverb: "Cañón" }, plantilla_pistas: ["Bombo Legüero", "Charango", "Quena", "Ocarina de Barro"] },
+    { id: 28, nombre: "Free Jazz Tribal", bpm_base: 148, escala_cuantizacion: "Cromática", compas: "4/4", swing_porcentaje: 15, fx_sugeridos: { autowah: false, flanger: false, delay: "off", reverb: "Cueva" }, plantilla_pistas: ["Bongó", "Contrabajo Pizzicato", "Didgeridoo"] },
+    { id: 29, nombre: "Funk Psicodélico Étnico", bpm_base: 105, escala_cuantizacion: "Mixolidia", compas: "4/4", swing_porcentaje: 25, fx_sugeridos: { autowah: true, flanger: true, delay: "1/8d", reverb: "Sala" }, plantilla_pistas: ["Trompe (Arpa de Boca)", "Bongó", "Contrabajo Pizzicato"] },
+    { id: 30, nombre: "Fusión Andina Electrónica", bpm_base: 118, escala_cuantizacion: "Pentatónica Menor", compas: "4/4", swing_porcentaje: 0, fx_sugeridos: { autowah: false, flanger: true, delay: "1/4", reverb: "Cañón" }, plantilla_pistas: ["Quena", "Charango", "Kultrún"] },
+    { id: 31, nombre: "Fusión Mapuche-Ambient (Wallmapu)", bpm_base: 76, escala_cuantizacion: "Pentatónica Menor", compas: "6/8", swing_porcentaje: 5, fx_sugeridos: { autowah: false, flanger: false, delay: "1/4", reverb: "Cañón" }, plantilla_pistas: ["Metawe (Cántaro Ceremonial)", "Pifilka", "Trompe (Arpa de Boca)", "Kultrún"] },
+    { id: 32, nombre: "Gamelán Glitch & Balafón", bpm_base: 130, escala_cuantizacion: "Pelog", compas: "4/4", swing_porcentaje: 0, fx_sugeridos: { autowah: false, flanger: true, delay: "1/8", reverb: "Templo" }, plantilla_pistas: ["Balafón", "Kalimba (Mbira)", "Koto", "Udú (Udu Drum)"] },
+    { id: 33, nombre: "Jazz Oriental / Maqam Fusión", bpm_base: 126, escala_cuantizacion: "Maqam Hijaz", compas: "7/8", swing_porcentaje: 12, fx_sugeridos: { autowah: false, flanger: false, delay: "1/8", reverb: "Sala" }, plantilla_pistas: ["Oud (Laúd Árabe)", "Duduk", "Tabla (Baya y Dayan)"] },
+    { id: 34, nombre: "Kora & Deep Lo-Fi Beats", bpm_base: 82, escala_cuantizacion: "Pentatónica Mayor", compas: "4/4", swing_porcentaje: 28, fx_sugeridos: { autowah: false, flanger: false, delay: "1/8", reverb: "Sala" }, plantilla_pistas: ["Kora", "Balafón", "Cajón Peruano", "Contrabajo Pizzicato"] },
+    { id: 35, nombre: "Nordic Shamanic Drone & Gaita", bpm_base: 78, escala_cuantizacion: "Frigia", compas: "4/4", swing_porcentaje: 0, fx_sugeridos: { autowah: false, flanger: true, delay: "1/4", reverb: "Cueva" }, plantilla_pistas: ["Gaita Gallega / Celta", "Didgeridoo", "Bombo Legüero", "Trompe (Arpa de Boca)"] },
+    { id: 36, nombre: "Organic House & Handpan", bpm_base: 120, escala_cuantizacion: "Dórica", compas: "4/4", swing_porcentaje: 10, fx_sugeridos: { autowah: false, flanger: false, delay: "1/8d", reverb: "Templo" }, plantilla_pistas: ["Hang Drum (Handpan)", "Udú (Udu Drum)", "Kalimba (Mbira)", "Contrabajo Pizzicato"] },
+    { id: 37, nombre: "Paiguano Starlight Ambient (432 Hz)", bpm_base: 68, escala_cuantizacion: "Dórica", compas: "4/4", swing_porcentaje: 0, fx_sugeridos: { autowah: false, flanger: true, delay: "1/4", reverb: "Cañón" }, plantilla_pistas: ["Hang Drum (Handpan)", "Ocarina de Barro", "Quena", "Kora"] },
+    { id: 38, nombre: "Patagonia Glacial IDM", bpm_base: 90, escala_cuantizacion: "Pentatónica Menor", compas: "6/8", swing_porcentaje: 8, fx_sugeridos: { autowah: false, flanger: true, delay: "1/4", reverb: "Cañón" }, plantilla_pistas: ["Pifilka", "Kultrún", "Trutruka", "Hang Drum (Handpan)"] },
+    { id: 39, nombre: "Psy-Trance Tribal & Didgeridoo", bpm_base: 138, escala_cuantizacion: "Frigia", compas: "4/4", swing_porcentaje: 0, fx_sugeridos: { autowah: true, flanger: true, delay: "1/8", reverb: "Cueva" }, plantilla_pistas: ["Didgeridoo", "Trompe (Arpa de Boca)", "Tabla (Baya y Dayan)", "Contrabajo Pizzicato"] },
+    { id: 40, nombre: "Psybient & Sitar Cósmico", bpm_base: 86, escala_cuantizacion: "Raga Bhairav", compas: "4/4", swing_porcentaje: 0, fx_sugeridos: { autowah: false, flanger: true, delay: "1/4", reverb: "Templo" }, plantilla_pistas: ["Sitar", "Tabla (Baya y Dayan)", "Hang Drum (Handpan)"] },
+    { id: 41, nombre: "Raga Deep House & Tabla", bpm_base: 122, escala_cuantizacion: "Raga Bhairav", compas: "4/4", swing_porcentaje: 12, fx_sugeridos: { autowah: false, flanger: true, delay: "1/8d", reverb: "Templo" }, plantilla_pistas: ["Sitar", "Tabla (Baya y Dayan)", "Hang Drum (Handpan)", "Contrabajo Pizzicato"] },
+    { id: 42, nombre: "Rapa Nui / Polinesia Ocean Ambient", bpm_base: 74, escala_cuantizacion: "Pentatónica Mayor", compas: "4/4", swing_porcentaje: 0, fx_sugeridos: { autowah: false, flanger: true, delay: "1/4", reverb: "Cañón" }, plantilla_pistas: ["Hang Drum (Handpan)", "Ocarina de Barro", "Udú (Udu Drum)", "Kora"] },
+    { id: 43, nombre: "Shamanic Bass & Metawe Acuático", bpm_base: 95, escala_cuantizacion: "Frigia", compas: "4/4", swing_porcentaje: 15, fx_sugeridos: { autowah: true, flanger: false, delay: "1/8d", reverb: "Cueva" }, plantilla_pistas: ["Metawe (Cántaro Ceremonial)", "Kultrún", "Didgeridoo", "Pifilka"] },
+    { id: 44, nombre: "Silk Road Psy-Chill (Erhu & Oud)", bpm_base: 85, escala_cuantizacion: "Pelog", compas: "4/4", swing_porcentaje: 6, fx_sugeridos: { autowah: false, flanger: true, delay: "1/4", reverb: "Templo" }, plantilla_pistas: ["Erhu", "Oud (Laúd Árabe)", "Koto", "Udú (Udu Drum)"] },
+    { id: 45, nombre: "Sitar Trap / Global Bass", bpm_base: 132, escala_cuantizacion: "Raga Bhairav", compas: "4/4", swing_porcentaje: 12, fx_sugeridos: { autowah: true, flanger: false, delay: "1/8d", reverb: "Templo" }, plantilla_pistas: ["Sitar", "Tabla (Baya y Dayan)", "Bongó", "Contrabajo Pizzicato"] },
+    { id: 46, nombre: "Sufi Trance Techno & Duduk", bpm_base: 127, escala_cuantizacion: "Maqam Hijaz", compas: "4/4", swing_porcentaje: 5, fx_sugeridos: { autowah: false, flanger: true, delay: "1/8d", reverb: "Templo" }, plantilla_pistas: ["Duduk", "Oud (Laúd Árabe)", "Tabla (Baya y Dayan)", "Contrabajo Pizzicato"] },
+    { id: 47, nombre: "Tokyo Shamisen & Koto Breaks", bpm_base: 134, escala_cuantizacion: "Pelog", compas: "4/4", swing_porcentaje: 12, fx_sugeridos: { autowah: true, flanger: true, delay: "1/8", reverb: "Sala" }, plantilla_pistas: ["Koto", "Shakuhachi", "Erhu", "Bongó"] },
+    { id: 48, nombre: "Trance Aborigen / Ritual", bpm_base: 92, escala_cuantizacion: "Frigia", compas: "6/8", swing_porcentaje: 10, fx_sugeridos: { autowah: true, flanger: false, delay: "1/8", reverb: "Templo" }, plantilla_pistas: ["Didgeridoo", "Kultrún", "Trutruka"] },
+    { id: 49, nombre: "Tribal Drum & Bass (Tabla & Didgeridoo)", bpm_base: 172, escala_cuantizacion: "Frigia", compas: "4/4", swing_porcentaje: 5, fx_sugeridos: { autowah: true, flanger: false, delay: "1/8", reverb: "Cueva" }, plantilla_pistas: ["Didgeridoo", "Tabla (Baya y Dayan)", "Trompe (Arpa de Boca)", "Contrabajo Pizzicato"] },
+    { id: 50, nombre: "Varanasi Psy-Dub & Sitar", bpm_base: 84, escala_cuantizacion: "Raga Bhairav", compas: "4/4", swing_porcentaje: 16, fx_sugeridos: { autowah: true, flanger: true, delay: "1/8d", reverb: "Templo" }, plantilla_pistas: ["Sitar", "Tabla (Baya y Dayan)", "Udú (Udu Drum)", "Contrabajo Pizzicato"] }
+
 ]
 };
 // 3. ESCALAS ÉTNICAS Y MICROTONALES (Desviaciones en Cents respecto a 12-TET)
@@ -607,8 +615,11 @@ function renderTracksTCP() {
   container.innerHTML = "";
 
   state.tracks.forEach(track => {
+    const anySolo = state.tracks.some(t => t.solo);
     const div = document.createElement("div");
+    const isEffectivelyMuted = track.muted || (anySolo && !track.solo);
     div.className = `track-tcp ${track.id === state.activeTrackId ? "selected" : ""}`;
+    div.style.opacity = isEffectivelyMuted ? "0.52" : "1";
     div.onclick = (e) => {
       if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "BUTTON") return;
       state.activeTrackId = track.id;
@@ -617,7 +628,9 @@ function renderTracksTCP() {
       renderPianoRoll();
     };
 
-    const optionsHtml = state.catalog.instrumentos.map(i =>
+    const sortedInsts = [...state.catalog.instrumentos].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+    const optionsHtml = sortedInsts.map(i =>
+
       `<option value="${i.id}" ${i.id === track.instrumentId ? "selected" : ""}>${i.nombre}</option>`
     ).join("");
 
@@ -646,12 +659,27 @@ function renderTracksTCP() {
 
 function toggleTrackMute(id) {
   const t = state.tracks.find(tr => tr.id === id);
-  if (t) { t.muted = !t.muted; renderTracksTCP(); }
+  if (!t) return;
+  t.muted = !t.muted;
+  // Si activas Mute en una pista que estaba en Solo, quita su Solo
+  if (t.muted && t.solo) t.solo = false;
+  renderTracksTCP();
+  showToast(`${t.muted ? "🔇 Mute ON" : "🔊 Mute OFF"}: ${t.name}`);
 }
 
 function toggleTrackSolo(id) {
   const t = state.tracks.find(tr => tr.id === id);
-  if (t) { t.solo = !t.solo; renderTracksTCP(); }
+  if (!t) return;
+  t.solo = !t.solo;
+  // Al activar Solo en una o varias pistas, asegúrate de quitarles Mute
+  if (t.solo && t.muted) t.muted = false;
+  renderTracksTCP();
+  const soloCount = state.tracks.filter(tr => tr.solo).length;
+  showToast(
+    t.solo
+      ? `🎧 Solo ON: ${t.name} (${soloCount} pista${soloCount > 1 ? "s" : ""} en Solo)`
+      : `🎧 Solo OFF: ${t.name}`
+  );
 }
 
 function unmuteAllTracks() {
@@ -1008,6 +1036,47 @@ function updateLowerThird() {
 }
 
 // 13. EXPORTACIÓN MAESTRA WAV OFFLINE (16-BIT PCM + COLA DE 2s)
+function generateGrooveForCurrentTracks(isVariation = false) {
+  const scaleObj = SCALES_MAP[state.scale] || SCALES_MAP["Pentatónica Menor"];
+  const scaleIntervals = Array.from(scaleObj.intervals);
+  if (scaleIntervals.length === 0) scaleIntervals.push(0, 3, 5, 7, 10);
+
+  state.tracks.forEach((track, idx) => {
+    const inst = state.catalog.instrumentos.find(i => i.id === track.instrumentId) || state.catalog.instrumentos;
+    const rootMidi = noteNameToMidi(inst?.nota_raiz || "C3");
+    const isPerc = ["drum_deep", "drum_slap", "udu_pot"].includes(inst?.timbre);
+    track.notes = [];
+
+    for (let step = 0; step < state.totalSteps; step += 2) {
+      if (isPerc || idx === 1) {
+        // Patrón rítmico sincopado
+        if (step % 4 === 0 || (isVariation && Math.random() > 0.65)) {
+          const offset = (step % 8 === 4) ? 5 : 0;
+          track.notes.push({ midi: rootMidi + offset, step, len: 1 });
+        }
+      } else if (idx === 0) {
+        // Línea melódica principal en la escala activa
+        if (step % 4 === 0 || (isVariation && Math.random() > 0.55)) {
+          const degIdx = isVariation
+            ? Math.floor(Math.random() * scaleIntervals.length)
+            : (step / 4) % scaleIntervals.length;
+          const octBoost = (isVariation && Math.random() > 0.8) ? 12 : 0;
+          track.notes.push({ midi: rootMidi + scaleIntervals[degIdx] + octBoost, step, len: 2 });
+        }
+      } else {
+        // Bajo / Bordón grave de soporte
+        if (step % 8 === 0 || (isVariation && step % 8 === 6 && Math.random() > 0.5)) {
+          const deg = (step % 16 === 8 && scaleIntervals.length > 2) ? scaleIntervals : 0;
+          track.notes.push({ midi: rootMidi + deg, step, len: 4 });
+        }
+      }
+    }
+  });
+
+  renderPianoRoll();
+  if (isVariation) showToast("🎲 Nuevo Groove electro-étnico generado");
+}
+
 async function exportMasterWav() {
   // Si todas las pistas están vacías, generar patrón musical automático antes de exportar
   const totalNotes = state.tracks.reduce((sum, t) => sum + t.notes.length, 0);
@@ -1045,6 +1114,9 @@ async function exportMasterWav() {
 }
 
 function generateGrooveForCurrentTracks() {
+    const totalNotes = state.tracks.reduce((sum, t) => sum + t.notes.length, 0);
+if (totalNotes === 0) generateGrooveForCurrentTracks(false);
+
   const scaleIntervals = Array.from(SCALES_MAP[state.scale]?.intervals || toScaleSet("0,3,5,7,10"));
   state.tracks.forEach((track, idx) => {
     const inst = state.catalog.instrumentos.find(i => i.id === track.instrumentId) || state.catalog.instrumentos;
@@ -1144,6 +1216,7 @@ function renderCatalog() {
     return matchCat && matchText;
   });
 
+  filtered.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
   grid.innerHTML = filtered.map(inst => `
     <article class="inst-card">
       <div>
@@ -1161,14 +1234,16 @@ function renderCatalog() {
 function renderStylesSelectors() {
   const landingGrid = document.getElementById("landing-styles-grid");
   const studioSelect = document.getElementById("studio-style-select");
+  const sortedStyles = [...state.catalog.estilos_musicales].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+
   if (landingGrid) {
-    landingGrid.innerHTML = state.catalog.estilos_musicales.map(st =>
+    landingGrid.innerHTML = sortedStyles.map(st =>
       `<button class="style-preset-btn" onclick="loadStyleAndOpenStudio(${st.id})"><strong>${st.nombre}</strong><span>${st.bpm_base} BPM • ${st.escala_cuantizacion}</span></button>`
     ).join("");
   }
   if (studioSelect) {
     studioSelect.innerHTML = `<option value="">-- Personalizado --</option>` +
-      state.catalog.estilos_musicales.map(st => `<option value="${st.id}">${st.nombre} (${st.bpm_base} BPM)</option>`).join("");
+      sortedStyles.map(st => `<option value="${st.id}">${st.nombre} (${st.bpm_base} BPM)</option>`).join("");
   }
 }
 
@@ -1198,7 +1273,8 @@ function applyMusicalStyle(styleId) {
       addNewTrack(found ? found.id : null);
     });
   }
-    generateGrooveForCurrentTracks();
+
+    generateGrooveForCurrentTracks(false);
 
   showToast(`✨ Plantilla cargada: ${st.nombre}`);
 }

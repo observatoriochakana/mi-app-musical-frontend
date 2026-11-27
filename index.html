@@ -217,7 +217,11 @@
               <button class="btn-secondary-warm btn-xs" onclick="changeOctave(1)">Octava ➡</button>
             </div>
             <span class="hint-text">Doble clic: crear nota • Clic derecho/Simple: borrar • Teclado PC (A-L): tocar en vivo</span>
-            <button class="btn-danger btn-xs" onclick="clearActiveTrackNotes()">🗑 Limpiar Pista</button>
+                        <div style="display:flex; gap:0.4rem;">
+              <button class="btn-primary-warm btn-xs" onclick="generateGrooveForCurrentTracks(true)" title="Generar nueva variación rítmica y melódica">🎲 Nuevo Groove</button>
+              <button class="btn-danger btn-xs" onclick="clearActiveTrackNotes()">🗑 Limpiar Pista</button>
+            </div>
+
           </div>
 
           <div class="pianoroll-scroll-wrapper">
