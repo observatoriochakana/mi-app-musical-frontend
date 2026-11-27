@@ -46,6 +46,23 @@
         
         #pianoRollContainer { flex: 1; width: 100%; overflow: auto; border-bottom: 1px solid var(--border-color); min-height: 150px; }
 
+        /* CONTROLES DEL TECLADO (OCTAVAS) */
+        .keyboard-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-panel);
+            padding: 5px 10px;
+            border-top: 1px solid var(--border-color);
+        }
+        .keyboard-controls button {
+            width: auto;
+            margin: 0;
+            padding: 5px 15px;
+            font-size: 0.8rem;
+        }
+        .keyboard-controls span { font-size: 0.8rem; color: var(--text-muted); }
+
         /* TECLADO VIRTUAL */
         .piano-container { 
             height: 140px; 
@@ -108,12 +125,11 @@
         /* RESPONSIVO PARA MÓVILES */
         @media (max-width: 768px) {
             .main-layout { flex-direction: column; }
-            /* Achicamos el panel de controles en móvil y lo hacemos scrolleable */
-            .sidebar { flex: 0 0 auto; max-height: 45vh; border-right: none; border-bottom: 1px solid var(--border-color); padding: 10px; }
+            .sidebar { flex: 0 0 auto; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--border-color); padding: 10px; }
             #pianoRollContainer { min-height: 100px; }
             .tecla-blanca { width: 40px; }
             .tecla-negra { width: 24px; }
-            .piano-container { height: 120px; }
+            .piano-container { height: 110px; }
         }
     </style>
 </head>
@@ -166,6 +182,14 @@
         <!-- ÁREA DEL EDITOR -->
         <div class="editor-area">
             <div id="pianoRollContainer"></div>
+            
+            <!-- Controles de Octava -->
+            <div class="keyboard-controls">
+                <button id="btnOctavaBajar" style="background: #333;">⬅️ Octava</button>
+                <span id="textoOctavaActual">Do3 - Do6 (36 - 84)</span>
+                <button id="btnOctavaSubir" style="background: #333;">Octava ➡️</button>
+            </div>
+
             <div class="piano-container" id="pianoVirtual">
                 <!-- Aquí JS inyectará las teclas -->
             </div>

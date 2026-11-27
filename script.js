@@ -12,10 +12,10 @@ const reverbSlider = document.getElementById('reverbSlider');
 const delaySlider = document.getElementById('delaySlider');
 const selectorInstrumentoUsuario = document.getElementById('selectorInstrumentoUsuario');
 
-// Elementos de Administración
-const nuevoNombreEtnicos = document.getElementById('nuevoNombreEtnicos');
-const archivoSF2 = document.getElementById('archivoSF2');
-const botonCargarSF2 = document.getElementById('botonCargarSF2');
+// Botones de Octava
+const btnOctavaBajar = document.getElementById('btnOctavaBajar');
+const btnOctavaSubir = document.getElementById('btnOctavaSubir');
+const textoOctavaActual = document.getElementById('textoOctavaActual');
 
 // Variables de Estado
 let notasDetectadas = [];
@@ -23,10 +23,12 @@ let grabando = false;
 let tiempoInicioGrabacion = 0;
 let notasActivas = {};
 
-const inicioMidi = 48;
-const finMidi = 72;
+// Rango MIDI extendido (4 octavas: C2 a C6)
+const inicioMidi = 36; 
+const finMidi = 84;    
 const altoFila = 20;
 const pxPorSegundo = 100;
+const anchoTeclaBlanca = 50; // Para calcular el scroll
 
 // Variables de Konva
 let konvaStage = null;
@@ -39,17 +41,16 @@ let efectoEntrada = null;
 let instrumentosCacheados = {};
 
 // ==========================================
-// 2. CATÁLOGO DE INSTRUMENTOS ÉTNICOS (¡CORREGIDO!)
-// Solo usamos nombres que la librería soundfont-player reconoce.
+// 2. CATÁLOGO DE INSTRUMENTOS
 // ==========================================
 const CATALOGO_INSTRUMENTOS = [
-    { valor: 'banjo', nombre: 'Trompe (Arpa de Boca)' }, // Banjo imita el twang
-    { valor: 'taiko_drum', nombre: 'Kultrún / Bombo Legüero' }, 
+    { valor: 'banjo', nombre: 'Trompe (Arpa de Boca)' },
+    { valor: 'taiko_drum', nombre: 'Kultrún / Bombo' }, 
     { valor: 'french_horn', nombre: 'Trutruka' }, 
     { valor: 'steel_drums', nombre: 'Metawe (Cántaro)' }, 
     { valor: 'recorder', nombre: 'Pifilka' },
     { valor: 'shakuhachi', nombre: 'Shakuhachi (Japón)' },
-    { valor: 'didgeridoo', nombre: 'Didgeridoo (Australia)' },
+    { valor: 'didgeridoo', nombre: 'Didgeridoo' },
     { valor: 'pan_flute', nombre: 'Zampoña / Siku' },
     { valor: 'flute', nombre: 'Quena Andina' },
     { valor: 'acoustic_guitar_nylon', nombre: 'Charango / Oud' },
@@ -65,9 +66,6 @@ const CATALOGO_INSTRUMENTOS = [
     { valor: 'acoustic_grand_piano', nombre: 'Piano (Base)' }
 ];
 
-// ==========================================
-// 3. CARGAR INSTRUMENTOS EN EL SELECTOR
-// ==========================================
 function cargarInstrumentosEnSelector() {
     selectorInstrumentoUsuario.innerHTML = '';
     CATALOGO_INSTRUMENTOS.forEach(inst => {
@@ -76,22 +74,17 @@ function cargarInstrumentosEnSelector() {
         option.innerText = inst.nombre;
         selectorInstrumentoUsuario.appendChild(option);
     });
-    
-    // Seleccionamos el Sitar por defecto para que pruebes un sonido étnico real
     selectorInstrumentoUsuario.value = 'sitar'; 
-    estadoGrabacion.innerText = "Catálogo cargado. ¡Toca una tecla!";
+    estadoGrabacion.innerText = "Catálogo cargado. ¡Desliza el piano!";
 }
 cargarInstrumentosEnSelector();
 
-// ==========================================
-// 4. SUBIR INSTRUMENTO DESDE LA APP (en pausa)
-// ==========================================
 botonCargarSF2.addEventListener('click', async () => {
     alert("La subida de archivos .sf2 estará disponible próximamente.");
 });
 
 // ==========================================
-// 5. MOTOR DE AUDIO Y EFECTOS
+// 3. MOTOR DE AUDIO Y EFECTOS
 // ==========================================
 function inicializarMotorDeAudio() {
     if (audioContextGlobal) return;
@@ -145,7 +138,7 @@ function inicializarMotorDeAudio() {
 }
 
 // ==========================================
-// 6. FUNCIÓN MAESTRA PARA TOCAR UNA NOTA
+// 4. FUNCIÓN MAESTRA PARA TOCAR
 // ==========================================
 async function tocarInstrumento(pitchMidi, duracion = 0.5) {
     if (!audioContextGlobal) inicializarMotorDeAudio();
@@ -172,21 +165,22 @@ async function tocarInstrumento(pitchMidi, duracion = 0.5) {
 }
 
 // ==========================================
-// 7. PIANO ROLL Y PIANO VIRTUAL
+// 5. PIANO ROLL Y PIANO VIRTUAL
 // ==========================================
 function inicializarPianoRoll() {
     const container = document.getElementById('pianoRollContainer');
     if (!container) return;
     if (konvaStage) konvaStage.destroy();
 
-    konvaStage = new Konva.Stage({ container: 'pianoRollContainer', width: 2000, height: (finMidi - inicioMidi + 1) * altoFila });
+    // Ajustamos el alto del piano roll para 4 octavas
+    konvaStage = new Konva.Stage({ container: 'pianoRollContainer', width: 3000, height: (finMidi - inicioMidi + 1) * altoFila });
     konvaLayer = new Konva.Layer();
     konvaStage.add(konvaLayer);
 
     for (let i = 0; i <= (finMidi - inicioMidi); i++) {
         const y = i * altoFila;
         const esTeclaNegra = [1, 3, 6, 8, 10].includes((finMidi - i) % 12);
-        const rect = new Konva.Rect({ x: 0, y: y, width: 2000, height: altoFila, fill: esTeclaNegra ? '#1a252f' : '#2c3e50', stroke: '#34495e', strokeWidth: 1 });
+        const rect = new Konva.Rect({ x: 0, y: y, width: 3000, height: altoFila, fill: esTeclaNegra ? '#1a252f' : '#2c3e50', stroke: '#34495e', strokeWidth: 1 });
         konvaLayer.add(rect);
     }
 
@@ -226,6 +220,7 @@ function inicializarPianoVirtual() {
     const notasBlancas = [0, 2, 4, 5, 7, 9, 11];
     let contadorTeclasBlancas = 0;
 
+    // Generamos las 4 octavas completas
     for (let i = inicioMidi; i <= finMidi; i++) {
         if (notasBlancas.includes(i % 12)) {
             const tecla = document.createElement('div');
@@ -245,7 +240,8 @@ function inicializarPianoVirtual() {
                 const teclaNegra = document.createElement('div');
                 teclaNegra.className = 'tecla-negra';
                 teclaNegra.dataset.midi = siguienteNota;
-                teclaNegra.style.left = (contadorTeclasBlancas * 50 - 15) + 'px';
+                // 50px ancho blanco, 30px ancho negro -> centrado
+                teclaNegra.style.left = (contadorTeclasBlancas * anchoTeclaBlanca - 15) + 'px';
 
                 teclaNegra.addEventListener('pointerdown', (e) => { e.preventDefault(); presionarTecla(siguienteNota); });
                 teclaNegra.addEventListener('pointerup', (e) => { e.preventDefault(); soltarTecla(siguienteNota); });
@@ -291,7 +287,19 @@ function soltarTecla(pitchMidi) {
 }
 
 // ==========================================
-// 8. CONTROLES DE REPRODUCCIÓN
+// 6. LÓGICA DE LOS BOTONES DE OCTAVA
+// ==========================================
+// Como el teclado es deslizable, los botones harán scroll automático en él.
+btnOctavaSubir.addEventListener('click', () => {
+    pianoVirtualContainer.scrollBy({ left: anchoTeclaBlanca * 7, behavior: 'smooth' }); // 7 teclas blancas = 1 octava
+});
+
+btnOctavaBajar.addEventListener('click', () => {
+    pianoVirtualContainer.scrollBy({ left: -anchoTeclaBlanca * 7, behavior: 'smooth' });
+});
+
+// ==========================================
+// 7. CONTROLES DE REPRODUCCIÓN
 // ==========================================
 botonGrabarPiano.addEventListener('click', () => {
     grabando = true;
@@ -323,7 +331,7 @@ botonReproducirMelodia.addEventListener('click', async () => {
 });
 
 // ==========================================
-// 9. INICIALIZACIÓN
+// 8. INICIALIZACIÓN
 // ==========================================
 inicializarPianoVirtual();
 inicializarPianoRoll();
