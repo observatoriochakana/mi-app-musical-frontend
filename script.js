@@ -1198,6 +1198,8 @@ function applyMusicalStyle(styleId) {
       addNewTrack(found ? found.id : null);
     });
   }
+    generateGrooveForCurrentTracks();
+
   showToast(`✨ Plantilla cargada: ${st.nombre}`);
 }
 
