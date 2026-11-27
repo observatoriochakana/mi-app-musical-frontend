@@ -15,7 +15,6 @@ const selectorInstrumentoUsuario = document.getElementById('selectorInstrumentoU
 // Elementos de Administración
 const nuevoNombreEtnicos = document.getElementById('nuevoNombreEtnicos');
 const archivoSF2 = document.getElementById('archivoSF2');
-const programaSF2 = document.getElementById('programaSF2');
 const botonCargarSF2 = document.getElementById('botonCargarSF2');
 
 // Variables de Estado
@@ -41,68 +40,43 @@ let instrumentosCacheados = {};
 
 // ==========================================
 // 2. CATÁLOGO DE 30 INSTRUMENTOS ÉTNICOS
-// (Basado en tu archivo 04_seedData_30_instrumentos_11_estilos.json)
 // ==========================================
 const CATALOGO_INSTRUMENTOS = [
-    // FAMILIA: ABORÍGENES
     { valor: 'jaw_harp', nombre: 'Trompe (Arpa de Boca)' },
     { valor: 'taiko_drum', nombre: 'Kultrún' }, 
-    { valor: 'french_horn', nombre: 'Trutruka' }, // Sustituto cercano
-    { valor: 'steel_drums', nombre: 'Metawe (Cántaro)' }, // Sustituto cercano
+    { valor: 'french_horn', nombre: 'Trutruka' },
+    { valor: 'steel_drums', nombre: 'Metawe (Cántaro)' },
     { valor: 'recorder', nombre: 'Pifilka' },
     { valor: 'shakuhachi', nombre: 'Shakuhachi (Japón)' },
     { valor: 'didgeridoo', nombre: 'Didgeridoo (Australia)' },
-    
-    // FAMILIA: ANDINOS Y SUDAMERICANOS
     { valor: 'pan_flute', nombre: 'Zampoña / Siku' },
     { valor: 'flute', nombre: 'Quena Andina' },
-    { valor: 'acoustic_guitar_nylon', nombre: 'Charango' }, // Sustituto cercano
+    { valor: 'acoustic_guitar_nylon', nombre: 'Charango' },
     { valor: 'banjo', nombre: 'Cuatro Venezolano' },
     { valor: 'acoustic_bass', nombre: 'Contrabajo Pizzicato' },
-    { valor: 'taiko_drum', nombre: 'Bombo Legüero' },
-    
-    // FAMILIA: AFRO Y PERCUSIÓN
     { valor: 'kalimba', nombre: 'Kalimba (Mbira)' },
-    { valor: 'steel_drums', nombre: 'Balafón' },
-    { valor: 'taiko_drum', nombre: 'Djembe' },
-    { valor: 'taiko_drum', nombre: 'Cajón Peruano' },
-    { valor: 'taiko_drum', nombre: 'Bongó' },
-    { valor: 'taiko_drum', nombre: 'Udu Drum' },
-    
-    // FAMILIA: ASIA Y MEDIO ORIENTE
     { valor: 'sitar', nombre: 'Sitar (India)' },
     { valor: 'koto', nombre: 'Koto (Japón)' },
     { valor: 'shamisen', nombre: 'Shamisen (Japón)' },
-    { valor: 'taiko_drum', nombre: 'Tabla (India)' },
     { valor: 'fiddle', nombre: 'Erhu (China)' },
     { valor: 'english_horn', nombre: 'Duduk (Armenia)' },
-    { valor: 'acoustic_guitar_nylon', nombre: 'Oud (Medio Oriente)' },
-    
-    // FAMILIA: EUROPA Y MODERNOS
     { valor: 'bagpipe', nombre: 'Gaita Gallega / Celta' },
-    { valor: 'pan_flute', nombre: 'Hang Drum (Handpan)' },
-    { valor: 'acoustic_grand_piano', nombre: 'Piano (Base)' },
-    { valor: 'synth_bass_1', nombre: 'Bajo Sintetizado' },
-    { valor: 'church_organ', nombre: 'Órgano de Iglesia' }
+    { valor: 'acoustic_grand_piano', nombre: 'Piano (Base)' }
 ];
 
 // ==========================================
 // 3. CARGAR INSTRUMENTOS EN EL SELECTOR
 // ==========================================
 function cargarInstrumentosEnSelector() {
-    selectorInstrumentoUsuario.innerHTML = '<option value="">-- Elige un instrumento --</option>';
-    
-    // Agrupamos por categorías simples para que se vea ordenado
+    selectorInstrumentoUsuario.innerHTML = '';
     CATALOGO_INSTRUMENTOS.forEach(inst => {
         const option = document.createElement('option');
         option.value = inst.valor;
         option.innerText = inst.nombre;
         selectorInstrumentoUsuario.appendChild(option);
     });
-    
-    // Seleccionamos el primero por defecto
     selectorInstrumentoUsuario.value = 'acoustic_grand_piano';
-    estadoGrabacion.innerText = "Catálogo Étnico cargado. ¡Listo para tocar!";
+    estadoGrabacion.innerText = "Catálogo cargado. ¡Toca una tecla!";
 }
 cargarInstrumentosEnSelector();
 
@@ -110,7 +84,7 @@ cargarInstrumentosEnSelector();
 // 4. SUBIR INSTRUMENTO DESDE LA APP (en pausa)
 // ==========================================
 botonCargarSF2.addEventListener('click', async () => {
-    alert("La subida de archivos .sf2 estará disponible cuando implementemos el backend completo. Por ahora, usa el Catálogo Étnico integrado.");
+    alert("La subida de archivos .sf2 estará disponible próximamente.");
 });
 
 // ==========================================
@@ -159,7 +133,6 @@ function inicializarMotorDeAudio() {
     efectoEntrada.connect(dryGain);
     dryGain.connect(masterGain);
 
-    // Actualizar efectos en vivo
     reverbSlider.addEventListener('input', () => {
         reverbGain.gain.value = parseInt(reverbSlider.value) / 100;
     });
@@ -178,13 +151,11 @@ async function tocarInstrumento(pitchMidi, duracion = 0.5) {
     const nombreInstrumento = selectorInstrumentoUsuario.value;
     if (!nombreInstrumento) return;
 
-    // Si ya está cacheado, usarlo directamente (sin recargar)
     if (instrumentosCacheados[nombreInstrumento]) {
         instrumentosCacheados[nombreInstrumento].play(pitchMidi, audioContextGlobal.currentTime, { duration: duracion, destination: efectoEntrada });
         return;
     }
 
-    // Cargar el instrumento (solo la primera vez)
     estadoGrabacion.innerText = `Cargando ${nombreInstrumento}...`;
     try {
         const instrumento = await Soundfont.instrument(audioContextGlobal, nombreInstrumento, { soundfont: 'FluidR3_GM' });
@@ -198,7 +169,7 @@ async function tocarInstrumento(pitchMidi, duracion = 0.5) {
 }
 
 // ==========================================
-// 7. PIANO ROLL Y PIANO VIRTUAL
+// 7. PIANO ROLL Y PIANO VIRTUAL (CON TECLAS NEGRAS)
 // ==========================================
 function inicializarPianoRoll() {
     const container = document.getElementById('pianoRollContainer');
@@ -247,21 +218,45 @@ function actualizarNotasEnPianoRoll() {
 }
 
 function inicializarPianoVirtual() {
-    pianoVirtualContainer.innerHTML = '';
+    pianoVirtualContainer.innerHTML = '<div class="piano-keys-wrapper" id="pianoKeysWrapper"></div>';
+    const wrapper = document.getElementById('pianoKeysWrapper');
     const notasBlancas = [0, 2, 4, 5, 7, 9, 11];
+    let contadorTeclasBlancas = 0;
 
     for (let i = inicioMidi; i <= finMidi; i++) {
         if (notasBlancas.includes(i % 12)) {
+            // Dibujar Tecla Blanca
             const tecla = document.createElement('div');
             tecla.className = 'tecla-blanca';
             tecla.innerText = i;
             tecla.dataset.midi = i;
+            tecla.dataset.tipo = 'blanca';
 
             tecla.addEventListener('pointerdown', (e) => { e.preventDefault(); presionarTecla(i); });
             tecla.addEventListener('pointerup', (e) => { e.preventDefault(); soltarTecla(i); });
             tecla.addEventListener('pointerleave', (e) => { e.preventDefault(); soltarTecla(i); });
 
-            pianoVirtualContainer.appendChild(tecla);
+            wrapper.appendChild(tecla);
+            contadorTeclasBlancas++;
+
+            // Si la siguiente nota es negra, dibujarla superpuesta
+            const siguienteNota = i + 1;
+            if (siguienteNota <= finMidi && !notasBlancas.includes(siguienteNota % 12)) {
+                const teclaNegra = document.createElement('div');
+                teclaNegra.className = 'tecla-negra';
+                teclaNegra.dataset.midi = siguienteNota;
+                teclaNegra.dataset.tipo = 'negra';
+                
+                // Posicionarla entre esta tecla blanca y la siguiente
+                // 50px es el ancho de la tecla blanca, 30px el ancho de la negra
+                teclaNegra.style.left = (contadorTeclasBlancas * 50 - 15) + 'px';
+
+                teclaNegra.addEventListener('pointerdown', (e) => { e.preventDefault(); presionarTecla(siguienteNota); });
+                teclaNegra.addEventListener('pointerup', (e) => { e.preventDefault(); soltarTecla(siguienteNota); });
+                teclaNegra.addEventListener('pointerleave', (e) => { e.preventDefault(); soltarTecla(siguienteNota); });
+
+                wrapper.appendChild(teclaNegra);
+            }
         }
     }
 
@@ -276,7 +271,7 @@ async function presionarTecla(pitchMidi) {
     inicializarMotorDeAudio();
     if (audioContextGlobal.state === 'suspended') await audioContextGlobal.resume();
 
-    const tecla = document.querySelector(`.tecla-blanca[data-midi="${pitchMidi}"]`);
+    const tecla = document.querySelector(`[data-midi="${pitchMidi}"]`);
     if (tecla) tecla.classList.add('pressed');
 
     tocarInstrumento(pitchMidi, 0.5);
@@ -288,7 +283,7 @@ async function presionarTecla(pitchMidi) {
 }
 
 function soltarTecla(pitchMidi) {
-    const tecla = document.querySelector(`.tecla-blanca[data-midi="${pitchMidi}"]`);
+    const tecla = document.querySelector(`[data-midi="${pitchMidi}"]`);
     if (tecla) tecla.classList.remove('pressed');
 
     if (!grabando || !notasActivas[pitchMidi]) return;
