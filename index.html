@@ -144,7 +144,16 @@
 
     <section class="studio-context-strip">
       <div class="strip-group">
+              <div class="strip-group">
         <label>Estilo Musical:</label>
+        <div style="display:flex; gap:0.35rem; align-items:center;">
+          <button class="btn-secondary-warm btn-xs" onclick="cycleMusicalStyle(-1)" title="Estilo anterior">⬅</button>
+          <select id="studio-style-select" class="warm-select" onchange="applyMusicalStyle(this.value)">
+            <option value="">-- Elegir Estilo (50) --</option>
+          </select>
+          <button class="btn-secondary-warm btn-xs" onclick="cycleMusicalStyle(1)" title="Siguiente estilo">➡</button>
+        </div>
+      </div>
         <select id="studio-style-select" class="warm-select" onchange="applyMusicalStyle(this.value)">
           <option value="">-- Personalizado --</option>
         </select>

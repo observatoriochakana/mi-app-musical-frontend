@@ -1234,7 +1234,10 @@ function renderCatalog() {
 function renderStylesSelectors() {
   const landingGrid = document.getElementById("landing-styles-grid");
   const studioSelect = document.getElementById("studio-style-select");
-  const sortedStyles = [...state.catalog.estilos_musicales].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  const sourceStyles = (state.catalog.estilos_musicales && state.catalog.estilos_musicales.length > 0)
+    ? state.catalog.estilos_musicales
+    : DEFAULT_SEED_DATA.estilos_musicales;
+  const sortedStyles = [...sourceStyles].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 
   if (landingGrid) {
     landingGrid.innerHTML = sortedStyles.map(st =>
@@ -1242,9 +1245,21 @@ function renderStylesSelectors() {
     ).join("");
   }
   if (studioSelect) {
-    studioSelect.innerHTML = `<option value="">-- Personalizado --</option>` +
+    const currentVal = studioSelect.value;
+    studioSelect.innerHTML = `<option value="">-- Elegir Estilo (${sortedStyles.length}) --</option>` +
       sortedStyles.map(st => `<option value="${st.id}">${st.nombre} (${st.bpm_base} BPM)</option>`).join("");
+    if (currentVal) studioSelect.value = currentVal;
   }
+}
+
+function cycleMusicalStyle(direction) {
+  const select = document.getElementById("studio-style-select");
+  if (!select || select.options.length <= 1) return;
+  let nextIdx = select.selectedIndex + direction;
+  if (nextIdx < 1) nextIdx = select.options.length - 1;
+  if (nextIdx >= select.options.length) nextIdx = 1;
+  select.selectedIndex = nextIdx;
+  applyMusicalStyle(select.value);
 }
 
 function loadStyleAndOpenStudio(styleId) { switchView("studio"); applyMusicalStyle(styleId); }
@@ -1421,6 +1436,8 @@ function showToast(msg) {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+  renderCatalog();
+  renderStylesSelectors();
   renderPcKeyboardVisual();
   syncWithBackend();
 });
