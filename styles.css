@@ -472,3 +472,33 @@ box-shadow: 0 6px 18px rgba(0,0,0,0.5); font-size: 0.85rem;
 .daw-workspace { grid-template-columns: 1fr; }
 .admin-grid { grid-template-columns: 1fr; }
 }
+/* FADER DE CANAL CALIBRADO EN DECIBELIOS */
+.channel-fader-box {
+  margin-top: 0.55rem;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-warm);
+  border-radius: 6px;
+  padding: 0.45rem 0.55rem;
+}
+
+.fader-header,
+.fader-pan-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.channel-fader-slider {
+  width: 100%;
+  margin: 0.35rem 0;
+  accent-color: var(--amber-primary);
+  cursor: pointer;
+}
+
+.fader-pan-row {
+  margin-top: 0.25rem;
+  padding-top: 0.25rem;
+  border-top: 1px dashed var(--border-warm);
+}

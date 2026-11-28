@@ -3,7 +3,7 @@
    Arquitectura: Web Audio API + Konva Piano Roll + Video Sync + Microtonalidad
    ========================================================================== */
 
-const BACKEND_URL = "https://onrender.com";
+const BACKEND_URL = "https://backend-musica-app.onrender.com";
 
 // 1. DICCIONARIO MULTILINGÜE (ES / EN / FR)
 const I18N = {
@@ -422,7 +422,7 @@ function triggerInstrumentVoice(ctx, destNode, instrument, midiNote, startTime, 
       const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
       if (panner) panner.pan.setValueAtTime(pan, startTime);
 
-      const peakGain = Math.max(0.05, volume * 0.9);
+    const peakGain = Math.max(0.001, volume * 0.55);
       const releaseStart = startTime + Math.max(durationSec, 0.15);
       const endRelease = releaseStart + adsr.release;
 
@@ -453,7 +453,24 @@ function triggerInstrumentVoice(ctx, destNode, instrument, midiNote, startTime, 
   const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
   if (panner) panner.pan.setValueAtTime(pan, startTime);
 
-  const peakGain = Math.max(0.05, volume * 0.45);
+const timbreGainTrim = {
+  jawharp: 0.30,
+  sitar_buzz: 0.32,
+  horn_drone: 0.34,
+  drum_deep: 0.52,
+  drum_slap: 0.50,
+  udu_pot: 0.52,
+  flute_breath: 0.46,
+  flute_warm: 0.46,
+  kalimba_bell: 0.48,
+  pluck_bright: 0.44,
+  pluck_warm: 0.45,
+  bowed_warm: 0.44,
+  bass_upright: 0.52
+};
+const baseTrim = timbreGainTrim[timbre] || 0.45;
+const peakGain = Math.max(0.001, volume * baseTrim);
+
   const sustainLevel = Math.max(0.001, peakGain * adsr.sustain);
   const endAttack = startTime + adsr.attack;
   const endDecay = endAttack + adsr.decay;
@@ -681,7 +698,7 @@ function addNewTrack(instrumentId = null) {
     id: Date.now() + Math.floor(Math.random() * 999),
     name: inst ? inst.nombre : `Pista ${state.tracks.length + 1}`,
     instrumentId: inst ? inst.id : 1,
-    volume: 0.85,
+    volume: 0.80,
     pan: 0,
     muted: false,
     solo: false,
@@ -711,6 +728,7 @@ function renderTracksTCP() {
     const isEffectivelyMuted = track.muted || (anySolo && !track.solo);
     div.className = `track-tcp ${track.id === state.activeTrackId ? "selected" : ""}`;
     div.style.opacity = isEffectivelyMuted ? "0.52" : "1";
+
     div.onclick = (e) => {
       if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "BUTTON") return;
       state.activeTrackId = track.id;
@@ -721,32 +739,43 @@ function renderTracksTCP() {
 
     const sortedInsts = [...state.catalog.instrumentos].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
     const optionsHtml = sortedInsts.map(i =>
-
       `<option value="${i.id}" ${i.id === track.instrumentId ? "selected" : ""}>${i.nombre}</option>`
     ).join("");
+
+    const dbDisplay = track.volume <= 0.01
+      ? "-∞ dB"
+      : `${(20 * Math.log10(track.volume / 0.8)).toFixed(1)} dB`;
 
     div.innerHTML = `
       <div class="track-tcp-top">
         <span class="track-name">${track.name}</span>
         <div class="track-ms-btns">
           <button class="ms-btn ${track.muted ? "mute-on" : ""}" onclick="toggleTrackMute(${track.id})" title="Mute (M)">M</button>
-          <button class="ms-btn ${track.solo ? "solo-on" : ""}" onclick="toggleTrackSolo(${track.id})" title="Solo">S</button>
+          <button class="ms-btn ${track.solo ? "solo-on" : ""}" onclick="toggleTrackSolo(${track.id})" title="Solo (S)">S</button>
           <button class="ms-btn" onclick="deleteTrack(${track.id})" title="Eliminar pista">✕</button>
         </div>
       </div>
       <select class="warm-select full-width" onchange="changeTrackInstrument(${track.id}, this.value)">${optionsHtml}</select>
-      <div class="track-sliders">
-        <label>Vol: ${Math.round(track.volume * 100)}%
-          <input type="range" min="0" max="1" step="0.05" value="${track.volume}" oninput="updateTrackMix(${track.id}, 'volume', this.value)" />
-        </label>
-        <label>Pan: ${track.pan}
-          <input type="range" min="-1" max="1" step="0.1" value="${track.pan}" oninput="updateTrackMix(${track.id}, 'pan', this.value)" />
-        </label>
+      <div class="channel-fader-box">
+        <div class="fader-header">
+          <span>🎚 Fader Nivel</span>
+          <span id="fader-db-${track.id}" class="mono-badge">${dbDisplay}</span>
+        </div>
+        <input type="range" class="channel-fader-slider" min="0" max="1.25" step="0.01" value="${track.volume}"
+          oninput="updateTrackMix(${track.id}, 'volume', this.value)"
+          ondblclick="resetTrackFader(${track.id}, this)"
+          title="Desliza para ajustar nivel • Doble clic: 0.0 dB" />
+        <div class="fader-pan-row">
+          <span>Pan: <strong id="pan-val-${track.id}">${track.pan === 0 ? "Centro" : track.pan}</strong></span>
+          <input type="range" min="-1" max="1" step="0.1" value="${track.pan}"
+            oninput="updateTrackMix(${track.id}, 'pan', this.value)" style="width: 62%;" />
+        </div>
       </div>
     `;
     container.appendChild(div);
   });
 }
+
 
 function toggleTrackMute(id) {
   const t = state.tracks.find(tr => tr.id === id);
@@ -811,7 +840,28 @@ function changeTrackInstrument(trackId, instId) {
 
 function updateTrackMix(trackId, prop, val) {
   const t = state.tracks.find(tr => tr.id === trackId);
-  if (t) t[prop] = Number(val);
+  if (!t) return;
+  t[prop] = Number(val);
+
+  if (prop === "volume") {
+    const label = document.getElementById(`fader-db-${trackId}`);
+    if (label) {
+      label.textContent = t.volume <= 0.01
+        ? "-∞ dB"
+        : `${(20 * Math.log10(t.volume / 0.8)).toFixed(1)} dB`;
+    }
+  } else if (prop === "pan") {
+    const panLabel = document.getElementById(`pan-val-${trackId}`);
+    if (panLabel) {
+      panLabel.textContent = t.pan === 0 ? "Centro" : (t.pan < 0 ? `L ${Math.abs(t.pan)}` : `R ${t.pan}`);
+    }
+  }
+}
+
+function resetTrackFader(trackId, sliderEl) {
+  sliderEl.value = 0.8;
+  updateTrackMix(trackId, "volume", 0.8);
+  showToast("🎚 Fader restablecido a 0.0 dB");
 }
 
 function syncTrackADSRSliders() {
@@ -1091,7 +1141,7 @@ async function importLocalAudioFiles(fileList) {
       url,
       arrayBuffer,
       audioEl,
-      volume: 0.85,
+      volume: 0.80,
       muted: false,
       solo: false
     });
@@ -2144,6 +2194,45 @@ async function toggleSamplerLiveRecording() {
   }
 }
 
+function normalizeBufferToTargetRms(audioBuffer, targetRms = 0.22) {
+  const numChannels = audioBuffer.numberOfChannels;
+  const len = audioBuffer.length;
+  let sumSquares = 0;
+  let totalSamples = 0;
+
+  for (let ch = 0; ch < numChannels; ch++) {
+    const data = audioBuffer.getChannelData(ch);
+    for (let i = 0; i < len; i++) {
+      if (Math.abs(data[i]) > 0.005) { // Ignorar silencios para medir energía real
+        sumSquares += data[i] * data[i];
+        totalSamples++;
+      }
+    }
+  }
+
+  const currentRms = totalSamples > 0 ? Math.sqrt(sumSquares / totalSamples) : 0.1;
+  // Calcular ganancia para igualar sonoridad, evitando saturación (peak <= 0.92)
+  let maxPeak = 0.001;
+  for (let ch = 0; ch < numChannels; ch++) {
+    const data = audioBuffer.getChannelData(ch);
+    for (let i = 0; i < len; i++) {
+      const abs = Math.abs(data[i]);
+      if (abs > maxPeak) maxPeak = abs;
+    }
+  }
+
+  const desiredGain = targetRms / Math.max(currentRms, 0.01);
+  const safeGain = Math.min(desiredGain, 0.92 / maxPeak, 4.0);
+
+  for (let ch = 0; ch < numChannels; ch++) {
+    const data = audioBuffer.getChannelData(ch);
+    for (let i = 0; i < len; i++) {
+      data[i] *= safeGain;
+    }
+  }
+  return audioBuffer;
+}
+
 // Separa automáticamente una grabación con múltiples notas en clips individuales
 function splitAudioBufferIntoNotes(audioBuffer) {
   const sr = audioBuffer.sampleRate;
@@ -2209,21 +2298,14 @@ function splitAudioBufferIntoNotes(audioBuffer) {
     for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
       const srcCh = audioBuffer.getChannelData(ch);
       const dstCh = sliceBuf.getChannelData(ch);
-      let peak = 0.001;
-      for (let i = 0; i < len; i++) {
-        const abs = Math.abs(srcCh[start + i]);
-        if (abs > peak) peak = abs;
-      }
-      const normGain = Math.min(2.5, 0.9 / peak); // Normalizar volumen de cada nota
-
       for (let i = 0; i < len; i++) {
         let env = 1.0;
         if (i < fadeSamples) env = i / fadeSamples;
         else if (i > len - fadeSamples) env = (len - i) / fadeSamples;
-        dstCh[i] = srcCh[start + i] * normGain * env;
+        dstCh[i] = srcCh[start + i] * env;
       }
     }
-    return sliceBuf;
+    return normalizeBufferToTargetRms(sliceBuf, 0.22);
   });
 }
 
@@ -2363,38 +2445,12 @@ async function handleInstrumentSamplesUpload(fileList) {
     }
   }
 }
-
-function renderSamplerNotesList() {
-  const list = document.getElementById("sampler-notes-list");
-  const inst = state.catalog.instrumentos.find(i => i.id === currentSamplerInstrumentId);
-  if (!list || !inst) return;
-
-  const samples = inst.customSamples || [];
-  if (samples.length === 0) {
-    list.innerHTML = `<p class="muted-text">Este instrumento usa síntesis física actualmente. Sube notas grabadas para reemplazarla con sonido real.</p>`;
-    return;
-  }
-
-  list.innerHTML = samples.map((s, idx) => `
-    <div class="fs-item">
-      <div>
-        <strong>Nota: ${s.noteName} (${s.freq} Hz)</strong>
-        <div class="muted-text">${s.fileName} • Desviación: ${s.cents >= 0 ? "+" : ""}${s.cents} cents</div>
-      </div>
-      <div style="display:flex; gap:0.4rem; align-items:center;">
-        <button class="btn-xs btn-secondary-warm" onclick="previewCustomSample(${inst.id}, ${idx})">▶ Probar</button>
-        <button class="btn-xs btn-danger" onclick="removeSingleCustomSample(${inst.id}, ${idx})">✕</button>
-      </div>
-    </div>
-  `).join("");
-}
-
 function previewCustomSample(instId, idx) {
   initAudioEngine();
   const inst = state.catalog.instrumentos.find(i => i.id === instId);
   const sample = inst?.customSamples?.[idx];
   if (!sample) return;
-  triggerInstrumentVoice(audioCtx, autoWahFilter, inst, sample.midi, audioCtx.currentTime, 0.8, 0.9, 0);
+  triggerInstrumentVoice(audioCtx, autoWahFilter, inst, sample.midi, audioCtx.currentTime, 0.8, 0.8, 0);
 }
 
 function removeSingleCustomSample(instId, idx) {
@@ -2418,7 +2474,6 @@ function clearInstrumentSamples() {
   document.getElementById("tuner-live-readout").textContent = "Muestras eliminadas. Restaurada síntesis física.";
 }
 
-// Rehidratar buffers de audio al cargar desde localStorage
 async function rehydrateAllCustomSamples() {
   const decodeCtx = new OfflineAudioContext(1, 1, 44100);
   for (const inst of state.catalog.instrumentos) {
@@ -2429,6 +2484,7 @@ async function rehydrateAllCustomSamples() {
           const res = await fetch(s.dataUrl);
           const arrBuf = await res.arrayBuffer();
           const decBuf = await decodeCtx.decodeAudioData(arrBuf);
+          normalizeBufferToTargetRms(decBuf, 0.22);
           inst._decodedBuffers.push(decBuf);
         } catch (e) {
           inst._decodedBuffers.push(null);
@@ -2438,8 +2494,6 @@ async function rehydrateAllCustomSamples() {
   }
 }
 
-
-// CREACIÓN DE NUEVOS INSTRUMENTOS DESDE EL FRONTEND
 function openNewInstrumentModal() {
   document.getElementById("new-inst-modal").classList.remove("hidden");
 }
@@ -2448,31 +2502,39 @@ function closeNewInstrumentModal() {
   document.getElementById("new-inst-modal").classList.add("hidden");
 }
 
-function createCustomInstrument() {
-  const nombre = document.getElementById("custom-inst-name").value.trim();
-  if (!nombre) return showToast("Escribe el nombre del instrumento");
-
-  const newInst = {
-    id: Date.now(),
-    nombre,
-    categoria: document.getElementById("custom-inst-cat").value,
-    origen_cultural: document.getElementById("custom-inst-origin").value.trim() || "Artesanal / Personalizado",
-    nota_raiz: document.getElementById("custom-inst-root").value.trim().toUpperCase() || "C4",
-    timbre: document.getElementById("custom-inst-timbre").value,
-    envolvente_adsr: { attack: 0.01, decay: 0.3, sustain: 0.8, release: 0.35 },
-    descripcion_corta: document.getElementById("custom-inst-desc").value.trim() || "Instrumento personalizado creado en EthnoReaper Studio.",
-    customSamples: []
-  };
-
-  state.catalog.instrumentos.push(newInst);
-  saveCatalogToLocalBackup();
+window.addEventListener("DOMContentLoaded", () => {
+  loadCatalogFromLocalBackup();
+  rehydrateAllCustomSamples();
   renderCatalog();
-  renderTracksTCP();
-  closeNewInstrumentModal();
-  showToast(`🪕 "${nombre}" creado. Ahora puedes subirle tus grabaciones.`);
-  openSamplerModal(newInst.id);
-}
+  renderStylesSelectors();
+  renderPcKeyboardVisual();
+  syncWithBackend();
 
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+
+  if (navigator.requestMIDIAccess) {
+    navigator.requestMIDIAccess().then(midiAccess => {
+      for (const input of midiAccess.inputs.values()) {
+        input.onmidimessage = (msg) => {
+          const [status, note, velocity] = msg.data;
+          if ((status & 0xf0) === 0x90 && velocity > 0) {
+            initAudioEngine();
+            const activeTrack = state.tracks.find(t => t.id === state.activeTrackId);
+            if (!activeTrack) return;
+            const inst = state.catalog.instrumentos.find(i => i.id === activeTrack.instrumentId) || state.catalog.instrumentos[0];
+            triggerInstrumentVoice(audioCtx, autoWahFilter, inst, note, audioCtx.currentTime, 0.35, (velocity / 127) * activeTrack.volume, activeTrack.pan);
+            if (state.isRecordingMidi && state.isPlaying) {
+              activeTrack.notes.push({ midi: note, step: state.currentStep, len: 2 });
+              renderPianoRoll();
+            }
+          }
+        };
+      }
+    }).catch(() => {});
+  }
+});
 
 window.addEventListener("DOMContentLoaded", () => {
  rehydrateAllCustomSamples()
