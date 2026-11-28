@@ -399,7 +399,7 @@ function triggerInstrumentVoice(ctx, destNode, instrument, midiNote, startTime, 
 
     if (validSamples.length > 0) {
       // Buscar la muestra grabada más cercana a la nota MIDI solicitada
-      let closest = validSamples;
+      let closest = validSamples[0];
       let minDiff = Math.abs(midiNote - closest.midi);
       for (const s of validSamples) {
         const diff = Math.abs(midiNote - s.midi);
@@ -564,7 +564,7 @@ function togglePlayPause() {
     document.getElementById("btn-play-pause").textContent = "⏸ Pausa";
     document.getElementById("btn-play-pause").classList.add("active-play");
     syncAndPlayVideos();
-    stopAndResetImportedAudios();
+    syncAndPlayImportedAudios();
     startSequencerLoop();
   }
 }
@@ -1411,7 +1411,7 @@ function generateGrooveForCurrentTracks(isVariation = false) {
         // Bajo / Bordón grave
         const bassCycle = stepUnit * 2;
         if (step % bassCycle === 0 || (isVariation && step % bassCycle === stepUnit && Math.random() > 0.5)) {
-          const deg = (step % (bassCycle * 2) === bassCycle && scaleIntervals.length > 2) ? scaleIntervals : 0;
+          const deg = (step % (bassCycle * 2) === bassCycle && scaleIntervals.length > 2) ? scaleIntervals[2] : 0;
           track.notes.push({ midi: rootMidi + deg, step, len: stepUnit });
         }
       }
@@ -1562,32 +1562,6 @@ async function exportMasterWav() {
   a.click();
   showToast("✅ Master WAV exportado con FX y Tomas Acústicas (-0.3 dBFS)");
 }
-
-
-function generateGrooveForCurrentTracks() {
-    const totalNotes = state.tracks.reduce((sum, t) => sum + t.notes.length, 0);
-if (totalNotes === 0) generateGrooveForCurrentTracks(false);
-
-  const scaleIntervals = Array.from(SCALES_MAP[state.scale]?.intervals || toScaleSet("0,3,5,7,10"));
-  state.tracks.forEach((track, idx) => {
-    const inst = state.catalog.instrumentos.find(i => i.id === track.instrumentId) || state.catalog.instrumentos;
-    const rootMidi = noteNameToMidi(inst?.nota_raiz || "C3");
-    track.notes = [];
-    for (let step = 0; step < 64; step += 4) {
-      if (idx === 0) {
-        const deg = scaleIntervals[(step / 4) % scaleIntervals.length];
-        track.notes.push({ midi: rootMidi + deg, step, len: 2 });
-      } else if (idx === 1) {
-        track.notes.push({ midi: rootMidi, step, len: 1 });
-        if (step % 8 === 4) track.notes.push({ midi: rootMidi + 5, step: step + 2, len: 1 });
-      } else {
-        if (step % 8 === 0) track.notes.push({ midi: rootMidi, step, len: 4 });
-      }
-    }
-  });
-  renderPianoRoll();
-}
-
 
 function audioBufferToWav(buffer) {
   const numOfChan = buffer.numberOfChannels;
@@ -2147,7 +2121,7 @@ async function sliceAndRegisterNotesFromBuffer(fullBuffer, baseLabel) {
   });
 
   if (inst.customSamples.length > 0) {
-    inst.nota_raiz = inst.customSamples.noteName;
+    inst.nota_raiz = inst.customSamples[0].noteName;
   }
 
   saveCatalogToLocalBackup();
@@ -2299,10 +2273,7 @@ function clearInstrumentSamples() {
 
 // Rehidratar buffers de audio al cargar desde localStorage
 async function rehydrateAllCustomSamples() {
-  if (!audioCtx) {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    audioCtx = new AudioContextClass();
-  }
+  const decodeCtx = new OfflineAudioContext(1, 1, 44100);
   for (const inst of state.catalog.instrumentos) {
     if (Array.isArray(inst.customSamples) && inst.customSamples.length > 0) {
       inst._decodedBuffers = [];
@@ -2310,7 +2281,7 @@ async function rehydrateAllCustomSamples() {
         try {
           const res = await fetch(s.dataUrl);
           const arrBuf = await res.arrayBuffer();
-          const decBuf = await audioCtx.decodeAudioData(arrBuf);
+          const decBuf = await decodeCtx.decodeAudioData(arrBuf);
           inst._decodedBuffers.push(decBuf);
         } catch (e) {
           inst._decodedBuffers.push(null);
@@ -2319,6 +2290,7 @@ async function rehydrateAllCustomSamples() {
     }
   }
 }
+
 
 // CREACIÓN DE NUEVOS INSTRUMENTOS DESDE EL FRONTEND
 function openNewInstrumentModal() {
