@@ -391,7 +391,61 @@ function noteNameToMidi(noteStr) {
 
 // 7. SÍNTESIS FÍSICA ORGÁNICA POR TIMBRE ÉTNICO + ADSR
 function triggerInstrumentVoice(ctx, destNode, instrument, midiNote, startTime, durationSec, volume = 0.8, pan = 0) {
-  const freq = midiToFreq(midiNote);
+    // SI EL INSTRUMENTO TIENE SAMPLES REALES CARGADOS, USAR MULTISAMPLER AFINADO
+  if (Array.isArray(instrument.customSamples) && instrument.customSamples.length > 0 && instrument._decodedBuffers) {
+    const validSamples = instrument.customSamples
+      .map((s, idx) => ({ ...s, buffer: instrument._decodedBuffers[idx] }))
+      .filter(s => s.buffer);
+
+    if (validSamples.length > 0) {
+      // Buscar la muestra grabada más cercana a la nota MIDI solicitada
+      let closest = validSamples;
+      let minDiff = Math.abs(midiNote - closest.midi);
+      for (const s of validSamples) {
+        const diff = Math.abs(midiNote - s.midi);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closest = s;
+        }
+      }
+
+      const source = ctx.createBufferSource();
+      source.buffer = closest.buffer;
+
+      // Ajustar afinación exacta: compensar desviación en cents del instrumento artesanal + distancia MIDI + afinación global Hz
+      const targetFreq = midiToFreq(midiNote);
+      const ratio = targetFreq / closest.freq;
+      source.playbackRate.setValueAtTime(ratio, startTime);
+
+      const adsr = instrument.envolvente_adsr || { attack: 0.01, decay: 0.3, sustain: 0.8, release: 0.35 };
+      const envGain = ctx.createGain();
+      const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+      if (panner) panner.pan.setValueAtTime(pan, startTime);
+
+      const peakGain = Math.max(0.05, volume * 0.9);
+      const releaseStart = startTime + Math.max(durationSec, 0.15);
+      const endRelease = releaseStart + adsr.release;
+
+      envGain.gain.setValueAtTime(0.0001, startTime);
+      envGain.gain.linearRampToValueAtTime(peakGain, startTime + Math.min(adsr.attack, 0.05));
+      envGain.gain.setValueAtTime(peakGain, releaseStart);
+      envGain.gain.exponentialRampToValueAtTime(0.0001, endRelease);
+
+      source.connect(envGain);
+      if (panner) {
+        envGain.connect(panner);
+        panner.connect(destNode);
+      } else {
+        envGain.connect(destNode);
+      }
+
+      source.start(startTime);
+      source.stop(endRelease + 0.05);
+      return;
+    }
+  }
+
+ const freq = midiToFreq(midiNote);
   const adsr = instrument.envolvente_adsr || { attack: 0.01, decay: 0.3, sustain: 0.5, release: 0.3 };
   const timbre = instrument.timbre || "pluck_warm";
 
@@ -1614,18 +1668,27 @@ function renderCatalog() {
   });
 
   filtered.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
-  grid.innerHTML = filtered.map(inst => `
+    grid.innerHTML = filtered.map(inst => {
+    const sampleCount = Array.isArray(inst.customSamples) ? inst.customSamples.length : 0;
+    const sampleBadge = sampleCount > 0
+      ? `<span class="inst-badge" style="background:var(--sage-green); color:#fff;">🎙 ${sampleCount} Sample${sampleCount > 1 ? "s" : ""}</span>`
+      : `<span class="inst-badge">${inst.categoria}</span>`;
+
+    return `
     <article class="inst-card">
       <div>
-        <div class="inst-card-top"><h4>${inst.nombre}</h4><span class="inst-badge">${inst.categoria}</span></div>
+        <div class="inst-card-top"><h4>${inst.nombre}</h4>${sampleBadge}</div>
         <div class="inst-origin">${inst.origen_cultural} • Raíz: ${inst.nota_raiz}</div>
         <p class="inst-desc mt-sm">${inst.descripcion_corta || ""}</p>
       </div>
-      <div class="inst-actions">
-        <button class="btn-secondary-warm btn-sm" onclick="auditionInstrument(${inst.id})">🔊 Audicionar</button>
-        <button class="btn-primary-warm btn-sm" onclick="sendInstrumentToStudio(${inst.id})">+ Al Estudio</button>
+      <div class="inst-actions" style="gap:0.35rem;">
+        <button class="btn-secondary-warm btn-xs" onclick="auditionInstrument(${inst.id})" title="Escuchar nota raíz">🔊 Audicionar</button>
+        <button class="btn-secondary-warm btn-xs" onclick="openSamplerModal(${inst.id})" title="Subir audios reales y afinar notas">🎙 Samples</button>
+        <button class="btn-primary-warm btn-xs" onclick="sendInstrumentToStudio(${inst.id})" title="Crear pista en el estudio">+ Al Estudio</button>
       </div>
-    </article>`).join("");
+    </article>`;
+  }).join("");
+
 }
 
 function renderStylesSelectors() {
@@ -1867,8 +1930,257 @@ function showToast(msg) {
   setTimeout(() => el.remove(), 3500);
 }
 
-window.addEventListener("DOMContentLoaded", () => {
+// ==========================================================================
+// 15. AFINADOR DSP (AUTOCORRELACIÓN), MULTISAMPLER Y NUEVOS INSTRUMENTOS
+// ==========================================================================
+let currentSamplerInstrumentId = null;
+
+function openSamplerModal(instId) {
+  currentSamplerInstrumentId = instId;
+  const inst = state.catalog.instrumentos.find(i => i.id === instId);
+  if (!inst) return;
+  document.getElementById("sampler-modal-title").textContent = `🎙 Samples & Afinador: ${inst.nombre}`;
+  document.getElementById("tuner-live-readout").textContent = `Instrumento: ${inst.nombre} • Nota raíz catálogo: ${inst.nota_raiz}`;
+  document.getElementById("sampler-modal").classList.remove("hidden");
+  renderSamplerNotesList();
+}
+
+function closeSamplerModal() {
+  document.getElementById("sampler-modal").classList.add("hidden");
+  currentSamplerInstrumentId = null;
+}
+
+// Algoritmo de detección de frecuencia fundamental (Hz) por Autocorrelación
+function detectPitchHz(audioBuffer) {
+  const sampleRate = audioBuffer.sampleRate;
+  const channel = audioBuffer.getChannelData(0);
+
+  // Buscar ventana donde haya mayor energía (evitar silencio inicial)
+  let bestStart = 0;
+  let maxRms = 0;
+  const winSize = Math.min(4096, Math.floor(channel.length / 2));
+  if (winSize < 512) return 440;
+
+  for (let i = 0; i < channel.length - winSize; i += 1024) {
+    let sum = 0;
+    for (let j = 0; j < winSize; j++) sum += channel[i + j] * channel[i + j];
+    const rms = Math.sqrt(sum / winSize);
+    if (rms > maxRms) {
+      maxRms = rms;
+      bestStart = i;
+    }
+  }
+
+  const buf = channel.slice(bestStart, bestStart + winSize);
+  const minPeriod = Math.floor(sampleRate / 1400); // Máx ~1400 Hz
+  const maxPeriod = Math.floor(sampleRate / 45);   // Mín ~45 Hz
+  let bestPeriod = -1;
+  let bestCorr = 0;
+
+  for (let period = minPeriod; period <= maxPeriod; period++) {
+    let corr = 0;
+    let norm1 = 0;
+    let norm2 = 0;
+    for (let i = 0; i < winSize - period; i++) {
+      corr += buf[i] * buf[i + period];
+      norm1 += buf[i] * buf[i];
+      norm2 += buf[i + period] * buf[i + period];
+    }
+    const denom = Math.sqrt(norm1 * norm2);
+    const normalizedCorr = denom > 0 ? corr / denom : 0;
+    if (normalizedCorr > bestCorr) {
+      bestCorr = normalizedCorr;
+      bestPeriod = period;
+    }
+  }
+
+  return bestPeriod > 0 ? sampleRate / bestPeriod : 440;
+}
+
+function freqToNoteDetails(freq) {
+  const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  const midiFloat = 69 + 12 * Math.log2(freq / 440);
+  const midiRound = Math.round(midiFloat);
+  const cents = Math.round((midiFloat - midiRound) * 100);
+  const name = noteNames[((midiRound % 12) + 12) % 12];
+  const octave = Math.floor(midiRound / 12) - 1;
+  return {
+    midi: midiRound,
+    noteName: `${name}${octave}`,
+    cents,
+    freq: Number(freq.toFixed(2))
+  };
+}
+
+async function handleInstrumentSamplesUpload(fileList) {
+  if (!fileList || fileList.length === 0 || !currentSamplerInstrumentId) return;
+  initAudioEngine();
+  const inst = state.catalog.instrumentos.find(i => i.id === currentSamplerInstrumentId);
+  if (!inst) return;
+
+  if (!Array.isArray(inst.customSamples)) inst.customSamples = [];
+  if (!Array.isArray(inst._decodedBuffers)) inst._decodedBuffers = [];
+
+  const readout = document.getElementById("tuner-live-readout");
+  readout.textContent = "⏳ Analizando frecuencias con el afinador DSP...";
+
+  for (const file of Array.from(fileList)) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+      const detectedHz = detectPitchHz(decodedBuffer);
+      const info = freqToNoteDetails(detectedHz);
+
+      // Convertir a DataURL para persistencia local
+      const dataUrl = await new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      });
+
+      inst.customSamples.push({
+        id: Date.now() + Math.floor(Math.random() * 999),
+        fileName: file.name,
+        freq: info.freq,
+        midi: info.midi,
+        noteName: info.noteName,
+        cents: info.cents,
+        dataUrl
+      });
+      inst._decodedBuffers.push(decodedBuffer);
+
+      readout.textContent = `🎯 Detectado: ${file.name} → ${info.noteName} (${info.freq} Hz | ${info.cents >= 0 ? "+" : ""}${info.cents} cents)`;
+    } catch (err) {
+      readout.textContent = `⚠ Error al procesar ${file.name}`;
+    }
+  }
+
+  // Actualizar nota raíz si es la primera muestra
+  if (inst.customSamples.length === 1) {
+    inst.nota_raiz = inst.customSamples.noteName;
+  }
+
+  saveCatalogToLocalBackup();
+  renderSamplerNotesList();
   renderCatalog();
+  showToast(`✅ ${fileList.length} nota(s) afinada(s) y guardada(s) en ${inst.nombre}`);
+}
+
+function renderSamplerNotesList() {
+  const list = document.getElementById("sampler-notes-list");
+  const inst = state.catalog.instrumentos.find(i => i.id === currentSamplerInstrumentId);
+  if (!list || !inst) return;
+
+  const samples = inst.customSamples || [];
+  if (samples.length === 0) {
+    list.innerHTML = `<p class="muted-text">Este instrumento usa síntesis física actualmente. Sube notas grabadas para reemplazarla con sonido real.</p>`;
+    return;
+  }
+
+  list.innerHTML = samples.map((s, idx) => `
+    <div class="fs-item">
+      <div>
+        <strong>Nota: ${s.noteName} (${s.freq} Hz)</strong>
+        <div class="muted-text">${s.fileName} • Desviación: ${s.cents >= 0 ? "+" : ""}${s.cents} cents</div>
+      </div>
+      <div style="display:flex; gap:0.4rem; align-items:center;">
+        <button class="btn-xs btn-secondary-warm" onclick="previewCustomSample(${inst.id}, ${idx})">▶ Probar</button>
+        <button class="btn-xs btn-danger" onclick="removeSingleCustomSample(${inst.id}, ${idx})">✕</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function previewCustomSample(instId, idx) {
+  initAudioEngine();
+  const inst = state.catalog.instrumentos.find(i => i.id === instId);
+  const sample = inst?.customSamples?.[idx];
+  if (!sample) return;
+  triggerInstrumentVoice(audioCtx, autoWahFilter, inst, sample.midi, audioCtx.currentTime, 0.8, 0.9, 0);
+}
+
+function removeSingleCustomSample(instId, idx) {
+  const inst = state.catalog.instrumentos.find(i => i.id === instId);
+  if (!inst) return;
+  inst.customSamples.splice(idx, 1);
+  if (inst._decodedBuffers) inst._decodedBuffers.splice(idx, 1);
+  saveCatalogToLocalBackup();
+  renderSamplerNotesList();
+  renderCatalog();
+}
+
+function clearInstrumentSamples() {
+  const inst = state.catalog.instrumentos.find(i => i.id === currentSamplerInstrumentId);
+  if (!inst) return;
+  inst.customSamples = [];
+  inst._decodedBuffers = [];
+  saveCatalogToLocalBackup();
+  renderSamplerNotesList();
+  renderCatalog();
+  document.getElementById("tuner-live-readout").textContent = "Muestras eliminadas. Restaurada síntesis física.";
+}
+
+// Rehidratar buffers de audio al cargar desde localStorage
+async function rehydrateAllCustomSamples() {
+  if (!audioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AudioContextClass();
+  }
+  for (const inst of state.catalog.instrumentos) {
+    if (Array.isArray(inst.customSamples) && inst.customSamples.length > 0) {
+      inst._decodedBuffers = [];
+      for (const s of inst.customSamples) {
+        try {
+          const res = await fetch(s.dataUrl);
+          const arrBuf = await res.arrayBuffer();
+          const decBuf = await audioCtx.decodeAudioData(arrBuf);
+          inst._decodedBuffers.push(decBuf);
+        } catch (e) {
+          inst._decodedBuffers.push(null);
+        }
+      }
+    }
+  }
+}
+
+// CREACIÓN DE NUEVOS INSTRUMENTOS DESDE EL FRONTEND
+function openNewInstrumentModal() {
+  document.getElementById("new-inst-modal").classList.remove("hidden");
+}
+
+function closeNewInstrumentModal() {
+  document.getElementById("new-inst-modal").classList.add("hidden");
+}
+
+function createCustomInstrument() {
+  const nombre = document.getElementById("custom-inst-name").value.trim();
+  if (!nombre) return showToast("Escribe el nombre del instrumento");
+
+  const newInst = {
+    id: Date.now(),
+    nombre,
+    categoria: document.getElementById("custom-inst-cat").value,
+    origen_cultural: document.getElementById("custom-inst-origin").value.trim() || "Artesanal / Personalizado",
+    nota_raiz: document.getElementById("custom-inst-root").value.trim().toUpperCase() || "C4",
+    timbre: document.getElementById("custom-inst-timbre").value,
+    envolvente_adsr: { attack: 0.01, decay: 0.3, sustain: 0.8, release: 0.35 },
+    descripcion_corta: document.getElementById("custom-inst-desc").value.trim() || "Instrumento personalizado creado en EthnoReaper Studio.",
+    customSamples: []
+  };
+
+  state.catalog.instrumentos.push(newInst);
+  saveCatalogToLocalBackup();
+  renderCatalog();
+  renderTracksTCP();
+  closeNewInstrumentModal();
+  showToast(`🪕 "${nombre}" creado. Ahora puedes subirle tus grabaciones.`);
+  openSamplerModal(newInst.id);
+}
+
+
+window.addEventListener("DOMContentLoaded", () => {
+ rehydrateAllCustomSamples()
+ renderCatalog();
   renderStylesSelectors();
   renderPcKeyboardVisual();
   syncWithBackend();

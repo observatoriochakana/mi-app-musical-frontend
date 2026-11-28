@@ -71,7 +71,9 @@
             <option value="Étnicos">Étnicos</option>
             <option value="Tradicionales">Tradicionales</option>
           </select>
+            <button class="btn-primary-warm btn-sm" onclick="openNewInstrumentModal()">+ Nuevo Instrumento</button>
         </div>
+
       </div>
       <div id="instruments-grid" class="instruments-grid"></div>
     </section>
@@ -488,6 +490,66 @@
       </table>
     </div>
   </div>
+  
+  <!-- MODAL 1: SAMPLER Y AFINADOR POR INSTRUMENTO -->
+  <div id="sampler-modal" class="modal-backdrop hidden" onclick="if(event.target===this) closeSamplerModal()">
+    <div class="modal-box" style="max-width: 680px;">
+      <div class="modal-header">
+        <h3 id="sampler-modal-title">🎙 Samples Reales y Afinador DSP</h3>
+        <button class="btn-icon" onclick="closeSamplerModal()">✕</button>
+      </div>
+      <p class="muted-text" id="sampler-modal-subtitle">
+        Sube una o varias notas grabadas de este instrumento. El afinador detectará automáticamente los Hz, la nota exacta y mapeará todo el teclado.
+      </p>
+
+      <div style="margin: 1rem 0; display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center;">
+        <input type="file" id="instrument-sample-files" accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a" multiple style="display:none" onchange="handleInstrumentSamplesUpload(this.files)" />
+        <button class="btn-primary-warm" onclick="document.getElementById('instrument-sample-files').click()">📂 Subir Nota(s) Grabadas (.wav / .mp3)</button>
+        <button class="btn-secondary-warm btn-sm" onclick="clearInstrumentSamples()">🗑 Restaurar Síntesis</button>
+      </div>
+
+      <div id="tuner-live-readout" style="background: var(--bg-deep); border: 1px solid var(--border-warm); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.9rem; font-family: var(--font-mono); font-size: 0.85rem; color: var(--amber-primary);">
+        Afinador listo: Selecciona uno o varios archivos de audio de notas individuales.
+      </div>
+
+      <div id="sampler-notes-list" class="freesound-results" style="max-height: 250px;"></div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: CREAR NUEVO INSTRUMENTO ARTESANAL / ÉTNICO -->
+  <div id="new-inst-modal" class="modal-backdrop hidden" onclick="if(event.target===this) closeNewInstrumentModal()">
+    <div class="modal-box" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3>🪕 Crear Nuevo Instrumento en Catálogo</h3>
+        <button class="btn-icon" onclick="closeNewInstrumentModal()">✕</button>
+      </div>
+      <div class="form-stack">
+        <input type="text" id="custom-inst-name" class="warm-input" placeholder="Nombre del instrumento (ej: Quena de Bambú, Tarka, Tarkada)" />
+        <div class="form-row-2">
+          <select id="custom-inst-cat" class="warm-select">
+            <option value="Aborígenes">Aborígenes</option>
+            <option value="Étnicos" selected>Étnicos</option>
+            <option value="Tradicionales">Tradicionales</option>
+          </select>
+          <select id="custom-inst-timbre" class="warm-select">
+            <option value="flute_breath">Timbre Base: Viento / Flauta</option>
+            <option value="pluck_warm">Timbre Base: Cuerda Pulsada</option>
+            <option value="drum_deep">Timbre Base: Percusión Grave</option>
+            <option value="drum_slap">Timbre Base: Percusión Aguda</option>
+            <option value="jawharp">Timbre Base: Metálico / Armónico</option>
+            <option value="horn_drone">Timbre Base: Drone / Trompa</option>
+          </select>
+        </div>
+        <div class="form-row-2">
+          <input type="text" id="custom-inst-origin" class="warm-input" placeholder="Origen cultural (ej: Valle de Elqui, Chile)" />
+          <input type="text" id="custom-inst-root" class="warm-input" placeholder="Nota raíz (ej: D4, G3, C3)" value="C4" />
+        </div>
+        <input type="text" id="custom-inst-desc" class="warm-input" placeholder="Descripción corta del sonido o construcción..." />
+        <button class="btn-primary-warm" onclick="createCustomInstrument()">+ Guardar Instrumento y Abrir Afinador</button>
+      </div>
+    </div>
+  </div>
+
 
   <div id="toast-container" class="toast-container"></div>
 
