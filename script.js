@@ -1234,15 +1234,42 @@ function stopMicRecording() {
 function renderMicClips() {
   const box = document.getElementById("mic-clips-container");
   box.innerHTML = state.micClips.map(c => `
-    <div class="mic-clip-item" style="opacity:${c.muted ? "0.5" : "1"};">
+    <div class="mic-clip-item" style="opacity:${c.muted ? "0.5" : "1"}; flex-wrap:wrap; gap:0.35rem;">
       <span>🎙 ${c.name}</span>
-      <div style="display:flex; gap:0.25rem;">
+      <div style="display:flex; gap:0.25rem; flex-wrap:wrap;">
         <button class="btn-xs btn-secondary-warm" onclick="new Audio('${c.url}').play()" title="Escuchar toma">▶</button>
+        <button class="btn-xs btn-primary-warm" onclick="promoteMicClipToTrack(${c.id})" title="Enviar esta toma como pista con fader, Mute y Solo">+ Pista</button>
         <button class="ms-btn ${c.muted ? "mute-on" : ""}" onclick="toggleMicClipMute(${c.id})" title="Silenciar en mezcla">M</button>
-        <a class="btn-xs btn-primary-warm" href="${c.url}" download="${c.name}.webm" title="Descargar toma suelta">⬇</a>
+        <a class="btn-xs btn-secondary-warm" href="${c.url}" download="${c.name}.webm" title="Descargar toma suelta">⬇</a>
+        <button class="ms-btn" onclick="deleteMicClip(${c.id})" title="Eliminar grabación">✕</button>
       </div>
     </div>
   `).join("");
+}
+
+function promoteMicClipToTrack(id) {
+  const clip = state.micClips.find(c => c.id === id);
+  if (!clip) return;
+
+  const audioEl = new Audio(clip.url);
+  audioEl.preload = "auto";
+
+  state.importedAudioTracks.push({
+    id: Date.now() + Math.floor(Math.random() * 9999),
+    name: `${clip.name} (Voz/Mic)`,
+    url: clip.url,
+    arrayBuffer: clip.arrayBuffer.slice(0),
+    audioEl,
+    volume: 0.80,
+    muted: false,
+    solo: false
+  });
+
+  // Quitar de la bandeja temporal para evitar que suene duplicado en la exportación
+  state.micClips = state.micClips.filter(c => c.id !== id);
+  renderMicClips();
+  renderImportedAudioList();
+  showToast(`🎚 "${clip.name}" añadida como pista con Volumen, Mute y Solo`);
 }
 
 function toggleMicClipMute(id) {
@@ -1251,6 +1278,21 @@ function toggleMicClipMute(id) {
   clip.muted = !clip.muted;
   renderMicClips();
 }
+
+function deleteMicClip(id) {
+  const clip = state.micClips.find(c => c.id === id);
+  if (clip && clip.url) {
+    URL.revokeObjectURL(clip.url);
+  }
+  state.micClips = state.micClips.filter(c => c.id !== id);
+  renderMicClips();
+  const statusBar = document.getElementById("mic-status-bar");
+  if (statusBar && state.micClips.length === 0) {
+    statusBar.textContent = "Micrófono listo";
+  }
+  showToast("🗑 Grabación de micrófono eliminada");
+}
+
 
 async function importLocalAudioFiles(fileList) {
   if (!fileList || fileList.length === 0) return;
