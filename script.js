@@ -1950,6 +1950,213 @@ function closeSamplerModal() {
   currentSamplerInstrumentId = null;
 }
 
+// ==========================================================================
+// GRABACIÓN EN VIVO Y SEPARACIÓN AUTOMÁTICA DE SERIE DE NOTAS (AUTO-SLICING)
+// ==========================================================================
+let samplerStream = null;
+let samplerRecorder = null;
+let samplerRecChunks = [];
+let samplerLiveAnalyser = null;
+let samplerTunerLoop = null;
+
+async function toggleSamplerLiveRecording() {
+  const btn = document.getElementById("btn-sampler-mic-rec");
+  const readout = document.getElementById("tuner-live-readout");
+
+  // SI YA ESTÁ GRABANDO -> DETENER Y PROCESAR SERIE DE NOTAS
+  if (samplerRecorder && samplerRecorder.state === "recording") {
+    samplerRecorder.stop();
+    cancelAnimationFrame(samplerTunerLoop);
+    if (samplerStream) samplerStream.getTracks().forEach(t => t.stop());
+    btn.textContent = "🔴 Grabar Nota(s) en Vivo";
+    readout.textContent = "⏳ Separando notas y analizando afinación de cada una...";
+    return;
+  }
+
+  // INICIAR GRABACIÓN CON AFINADOR EN TIEMPO REAL
+  try {
+    initAudioEngine();
+    samplerStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+
+    const micSource = audioCtx.createMediaStreamSource(samplerStream);
+    samplerLiveAnalyser = audioCtx.createAnalyser();
+    samplerLiveAnalyser.fftSize = 4096;
+    micSource.connect(samplerLiveAnalyser);
+
+    samplerRecChunks = [];
+    samplerRecorder = new MediaRecorder(samplerStream);
+    samplerRecorder.ondataavailable = e => { if (e.data.size > 0) samplerRecChunks.push(e.data); };
+
+    samplerRecorder.onstop = async () => {
+      const blob = new Blob(samplerRecChunks, { type: "audio/webm" });
+      const arrayBuffer = await blob.arrayBuffer();
+      const fullBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      await sliceAndRegisterNotesFromBuffer(fullBuffer, "Toma_Vivo");
+    };
+
+    samplerRecorder.start();
+    btn.textContent = "⏹ Detener y Reconocer Notas";
+    readout.textContent = "🎙 Escuchando... Toca una nota o una serie de notas separadas por una breve pausa.";
+
+    // Bucle de lectura del afinador en tiempo real mientras tocas
+    const liveBuf = new Float32Array(samplerLiveAnalyser.fftSize);
+    function liveTunerTick() {
+      if (!samplerRecorder || samplerRecorder.state !== "recording") return;
+      samplerLiveAnalyser.getFloatTimeDomainData(liveBuf);
+      let rms = 0;
+      for (let i = 0; i < liveBuf.length; i++) rms += liveBuf[i] * liveBuf[i];
+      rms = Math.sqrt(rms / liveBuf.length);
+
+      if (rms > 0.015) {
+        const fakeAudioBuf = { sampleRate: audioCtx.sampleRate, getChannelData: () => liveBuf };
+        const hz = detectPitchHz(fakeAudioBuf);
+        const info = freqToNoteDetails(hz);
+        readout.textContent = `🔴 GRABANDO | Afinador: ${info.noteName} (${info.freq} Hz | ${info.cents >= 0 ? "+" : ""}${info.cents} cents)`;
+      }
+      samplerTunerLoop = requestAnimationFrame(liveTunerTick);
+    }
+    liveTunerTick();
+  } catch (err) {
+    showToast("⚠ No se pudo acceder al micrófono. Revisa permisos.");
+  }
+}
+
+// Separa automáticamente una grabación con múltiples notas en clips individuales
+function splitAudioBufferIntoNotes(audioBuffer) {
+  const sr = audioBuffer.sampleRate;
+  const data = audioBuffer.getChannelData(0);
+  const hop = Math.floor(sr * 0.02); // Ventanas de 20 ms
+  const energies = [];
+
+  for (let i = 0; i < data.length; i += hop) {
+    let sum = 0;
+    const end = Math.min(i + hop, data.length);
+    for (let j = i; j < end; j++) sum += data[j] * data[j];
+    energies.push(Math.sqrt(sum / (end - i)));
+  }
+
+  const maxEnergy = Math.max(...energies, 0.001);
+  const startThresh = Math.max(0.015, maxEnergy * 0.14); // Umbral de ataque de nota
+  const stopThresh = Math.max(0.006, maxEnergy * 0.05);  // Umbral de silencio entre notas
+
+  const segments = [];
+  let inNote = false;
+  let noteStartSample = 0;
+  let silenceFrames = 0;
+  const minNoteSamples = Math.floor(sr * 0.12);   // Mínimo 120 ms para ser nota válida
+  const minSilenceFrames = 6;                      // ~120 ms de pausa separa dos notas
+
+  for (let f = 0; f < energies.length; f++) {
+    const e = energies[f];
+    if (!inNote && e >= startThresh) {
+      inNote = true;
+      noteStartSample = Math.max(0, f * hop - Math.floor(sr * 0.015)); // 15 ms de pre-ataque
+      silenceFrames = 0;
+    } else if (inNote) {
+      if (e < stopThresh) {
+        silenceFrames++;
+        if (silenceFrames >= minSilenceFrames) {
+          const noteEndSample = Math.min(data.length, (f - silenceFrames + 2) * hop);
+          if (noteEndSample - noteStartSample >= minNoteSamples) {
+            segments.push([noteStartSample, noteEndSample]);
+          }
+          inNote = false;
+        }
+      } else {
+        silenceFrames = 0;
+      }
+    }
+  }
+
+  if (inNote && data.length - noteStartSample >= minNoteSamples) {
+    segments.push([noteStartSample, data.length]);
+  }
+
+  // Si todo fue continuo sin pausas, devolver el buffer completo como 1 nota
+  if (segments.length === 0) {
+    segments.push([0, data.length]);
+  }
+
+  // Crear un AudioBuffer recortado y normalizado por cada nota detectada
+  return segments.map(([start, end]) => {
+    const len = end - start;
+    const sliceBuf = audioCtx.createBuffer(audioBuffer.numberOfChannels, len, sr);
+    const fadeSamples = Math.min(Math.floor(sr * 0.01), Math.floor(len / 4));
+
+    for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+      const srcCh = audioBuffer.getChannelData(ch);
+      const dstCh = sliceBuf.getChannelData(ch);
+      let peak = 0.001;
+      for (let i = 0; i < len; i++) {
+        const abs = Math.abs(srcCh[start + i]);
+        if (abs > peak) peak = abs;
+      }
+      const normGain = Math.min(2.5, 0.9 / peak); // Normalizar volumen de cada nota
+
+      for (let i = 0; i < len; i++) {
+        let env = 1.0;
+        if (i < fadeSamples) env = i / fadeSamples;
+        else if (i > len - fadeSamples) env = (len - i) / fadeSamples;
+        dstCh[i] = srcCh[start + i] * normGain * env;
+      }
+    }
+    return sliceBuf;
+  });
+}
+
+async function sliceAndRegisterNotesFromBuffer(fullBuffer, baseLabel) {
+  const inst = state.catalog.instrumentos.find(i => i.id === currentSamplerInstrumentId);
+  if (!inst) return;
+  if (!Array.isArray(inst.customSamples)) inst.customSamples = [];
+  if (!Array.isArray(inst._decodedBuffers)) inst._decodedBuffers = [];
+
+  const noteSlices = splitAudioBufferIntoNotes(fullBuffer);
+  const readout = document.getElementById("tuner-live-readout");
+
+  noteSlices.forEach((sliceBuf, idx) => {
+    const detectedHz = detectPitchHz(sliceBuf);
+    const info = freqToNoteDetails(detectedHz);
+    const wavBlob = audioBufferToWav(sliceBuf);
+    const dataUrl = URL.createObjectURL(wavBlob);
+
+    // Convertir a Base64 para persistencia permanente en localStorage
+    const reader = new FileReader();
+    reader.onload = () => {
+      const sampleObj = inst.customSamples.find(s => s._tempUrl === dataUrl);
+      if (sampleObj) {
+        sampleObj.dataUrl = reader.result;
+        delete sampleObj._tempUrl;
+        saveCatalogToLocalBackup();
+      }
+    };
+    reader.readAsDataURL(wavBlob);
+
+    inst.customSamples.push({
+      id: Date.now() + idx + Math.floor(Math.random() * 999),
+      fileName: `${baseLabel}_Nota${idx + 1}_${info.noteName}.wav`,
+      freq: info.freq,
+      midi: info.midi,
+      noteName: info.noteName,
+      cents: info.cents,
+      dataUrl,
+      _tempUrl: dataUrl
+    });
+    inst._decodedBuffers.push(sliceBuf);
+  });
+
+  if (inst.customSamples.length > 0) {
+    inst.nota_raiz = inst.customSamples.noteName;
+  }
+
+  saveCatalogToLocalBackup();
+  renderSamplerNotesList();
+  renderCatalog();
+  readout.textContent = `✅ ¡${noteSlices.length} nota(s) separada(s) y reconocida(s) automáticamente!`;
+  showToast(`🎯 ${noteSlices.length} nota(s) detectada(s) en ${inst.nombre}`);
+}
+
 // Algoritmo de detección de frecuencia fundamental (Hz) por Autocorrelación
 function detectPitchHz(audioBuffer) {
   const sampleRate = audioBuffer.sampleRate;
@@ -2024,46 +2231,16 @@ async function handleInstrumentSamplesUpload(fileList) {
   const readout = document.getElementById("tuner-live-readout");
   readout.textContent = "⏳ Analizando frecuencias con el afinador DSP...";
 
-  for (const file of Array.from(fileList)) {
+    for (const file of Array.from(fileList)) {
     try {
       const arrayBuffer = await file.arrayBuffer();
       const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
-      const detectedHz = detectPitchHz(decodedBuffer);
-      const info = freqToNoteDetails(detectedHz);
-
-      // Convertir a DataURL para persistencia local
-      const dataUrl = await new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.readAsDataURL(file);
-      });
-
-      inst.customSamples.push({
-        id: Date.now() + Math.floor(Math.random() * 999),
-        fileName: file.name,
-        freq: info.freq,
-        midi: info.midi,
-        noteName: info.noteName,
-        cents: info.cents,
-        dataUrl
-      });
-      inst._decodedBuffers.push(decodedBuffer);
-
-      readout.textContent = `🎯 Detectado: ${file.name} → ${info.noteName} (${info.freq} Hz | ${info.cents >= 0 ? "+" : ""}${info.cents} cents)`;
+      const cleanName = file.name.replace(/\.[^/.]+$/, "");
+      await sliceAndRegisterNotesFromBuffer(decodedBuffer, cleanName);
     } catch (err) {
       readout.textContent = `⚠ Error al procesar ${file.name}`;
     }
   }
-
-  // Actualizar nota raíz si es la primera muestra
-  if (inst.customSamples.length === 1) {
-    inst.nota_raiz = inst.customSamples.noteName;
-  }
-
-  saveCatalogToLocalBackup();
-  renderSamplerNotesList();
-  renderCatalog();
-  showToast(`✅ ${fileList.length} nota(s) afinada(s) y guardada(s) en ${inst.nombre}`);
 }
 
 function renderSamplerNotesList() {

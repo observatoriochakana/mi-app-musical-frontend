@@ -502,9 +502,10 @@
         Sube una o varias notas grabadas de este instrumento. El afinador detectará automáticamente los Hz, la nota exacta y mapeará todo el teclado.
       </p>
 
-      <div style="margin: 1rem 0; display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center;">
+      <div style="margin: 1rem 0; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+        <button id="btn-sampler-mic-rec" class="btn-danger" onclick="toggleSamplerLiveRecording()">🔴 Grabar Nota(s) en Vivo</button>
         <input type="file" id="instrument-sample-files" accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a" multiple style="display:none" onchange="handleInstrumentSamplesUpload(this.files)" />
-        <button class="btn-primary-warm" onclick="document.getElementById('instrument-sample-files').click()">📂 Subir Nota(s) Grabadas (.wav / .mp3)</button>
+        <button class="btn-primary-warm" onclick="document.getElementById('instrument-sample-files').click()">📂 Subir Audio (.wav/.mp3)</button>
         <button class="btn-secondary-warm btn-sm" onclick="clearInstrumentSamples()">🗑 Restaurar Síntesis</button>
       </div>
 
