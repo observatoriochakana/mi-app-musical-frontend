@@ -172,14 +172,26 @@
         </select>
       </div>
 
-      <div class="strip-group">
-        <label>Afinación La4 (Hz):</label>
+        <div class="strip-group">
+        <label>Afinación Ref. (Hz):</label>
         <select id="tuning-select" class="warm-select" onchange="updateBaseTuning(this.value)">
-          <option value="440">440 Hz (Estándar)</option>
-          <option value="432">432 Hz (Orgánica)</option>
-          <option value="415">415 Hz (Barroca / Grave)</option>
+          <option value="963">963 Hz (Solfeggio • Agudo Cristalino / Corona)</option>
+          <option value="492">492 Hz (Brillo Armónico / Campanas y Metal)</option>
+          <option value="444">444 Hz (C5 = 528 Hz • Solfeggio / Corazón)</option>
+          <option value="442">442 Hz (Orquesta Sinfónica / Proyección)</option>
+          <option value="440" selected>440 Hz (Estándar Internacional)</option>
+          <option value="435">435 Hz (Diapasón Histórico Romántico)</option>
+          <option value="432">432 Hz (Orgánica / Verdi / Tiny Desk)</option>
+          <option value="429.62">429.62 Hz (Resonancia Schumann / Tierra)</option>
+          <option value="415">415 Hz (Barroca / Un Semitono Grave)</option>
+          <option value="392">392 Hz (Barroca Francesa / Un Tono Grave)</option>
+          <option value="330">330 Hz (Grave Terroso / Maderas y Vientos)</option>
+          <option value="285">285 Hz (Solfeggio • Sub-Grave Regeneración)</option>
+          <option value="281">281 Hz (Resonancia Profunda / Cántaros y Cuencos)</option>
+          <option value="110">110 Hz (Resonancia Ancestral / Cámaras Megalíticas y Drone)</option>
         </select>
       </div>
+
 
       <div class="strip-group">
         <button class="btn-secondary-warm btn-xs" onclick="splitItemAtCursor()" title="Tecla S: Dividir clip/notas en cursor">✂ Dividir (S)</button>
