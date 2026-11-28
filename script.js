@@ -390,6 +390,80 @@ function noteNameToMidi(noteStr) {
 }
 
 // 7. SÍNTESIS FÍSICA ORGÁNICA POR TIMBRE ÉTNICO + ADSR
+function createTrackFxChain(ctx, destNode, trackFx) {
+  if (!trackFx) return destNode;
+
+  const inputNode = ctx.createGain();
+  let currentNode = inputNode;
+
+  if (trackFx.autowah) {
+    const wah = ctx.createBiquadFilter();
+    wah.type = "bandpass";
+    wah.Q.value = 5.5;
+    wah.frequency.value = 950;
+    currentNode.connect(wah);
+    currentNode = wah;
+  }
+
+  if (trackFx.flanger) {
+    const flDelay = ctx.createDelay(0.05);
+    flDelay.delayTime.value = 0.006;
+    const flGain = ctx.createGain();
+    flGain.gain.value = 0.55;
+    currentNode.connect(flDelay);
+    flDelay.connect(flGain);
+    flGain.connect(destNode);
+  }
+
+  currentNode.connect(destNode);
+
+  if (trackFx.echo > 0) {
+    const echoDelay = ctx.createDelay(2.0);
+    echoDelay.delayTime.value = (60 / state.bpm) * 0.75;
+    const echoFb = ctx.createGain();
+    echoFb.gain.value = 0.48;
+    const echoTone = ctx.createBiquadFilter();
+    echoTone.type = "lowpass";
+    echoTone.frequency.value = 2600;
+    const echoWet = ctx.createGain();
+    echoWet.gain.value = trackFx.echo;
+
+    currentNode.connect(echoDelay);
+    echoDelay.connect(echoTone);
+    echoTone.connect(echoFb);
+    echoFb.connect(echoDelay);
+    echoTone.connect(echoWet);
+    echoWet.connect(destNode);
+  }
+
+  if (trackFx.delay > 0) {
+    const del = ctx.createDelay(1.0);
+    del.delayTime.value = (60 / state.bpm) * 0.5;
+    const delFb = ctx.createGain();
+    delFb.gain.value = 0.25;
+    const delWet = ctx.createGain();
+    delWet.gain.value = trackFx.delay;
+
+    currentNode.connect(del);
+    del.connect(delFb);
+    delFb.connect(del);
+    del.connect(delWet);
+    delWet.connect(destNode);
+  }
+
+  if (trackFx.reverb > 0) {
+    const conv = ctx.createConvolver();
+    conv.buffer = buildOfflineImpulse(ctx, 1.8, 2.4);
+    const revWet = ctx.createGain();
+    revWet.gain.value = trackFx.reverb;
+    currentNode.connect(conv);
+    conv.connect(revWet);
+    revWet.connect(destNode);
+  }
+
+  return inputNode;
+}
+
 function triggerInstrumentVoice(ctx, destNode, instrument, midiNote, startTime, durationSec, volume = 0.8, pan = 0) {
     // SI EL INSTRUMENTO TIENE SAMPLES REALES CARGADOS, USAR MULTISAMPLER AFINADO
   if (Array.isArray(instrument.customSamples) && instrument.customSamples.length > 0 && instrument._decodedBuffers) {
@@ -656,9 +730,10 @@ function startSequencerLoop() {
       if (anySolo && !track.solo) return;
 
       const notesAtStep = track.notes.filter(n => n.step === state.currentStep);
+        const trackDest = createTrackFxChain(audioCtx, autoWahFilter, track.fx);
       notesAtStep.forEach(n => {
-        const inst = state.catalog.instrumentos.find(i => i.id === track.instrumentId) || state.catalog.instrumentos;
-        triggerInstrumentVoice(audioCtx, autoWahFilter, inst, n.midi, audioCtx.currentTime, stepSec * (n.len || 1), track.volume, track.pan);
+        const inst = state.catalog.instrumentos.find(i => i.id === track.instrumentId) || state.catalog.instrumentos[0];
+        triggerInstrumentVoice(audioCtx, trackDest, inst, n.midi, audioCtx.currentTime, stepSec * (n.len || 1), track.volume, track.pan);
       });
     });
 
@@ -702,7 +777,16 @@ function addNewTrack(instrumentId = null) {
     pan: 0,
     muted: false,
     solo: false,
-    notes: []
+    notes: [],
+    fxOpen: false,
+    fx: {
+      reverb: 0.15,
+      delay: 0,
+      echo: 0,
+      autowah: false,
+      flanger: false
+    }
+
   };
   state.tracks.push(newTrack);
   state.activeTrackId = newTrack.id;
@@ -723,14 +807,17 @@ function renderTracksTCP() {
   container.innerHTML = "";
 
   state.tracks.forEach(track => {
+    if (!track.fx) track.fx = { reverb: 0.15, delay: 0, echo: 0, autowah: false, flanger: false };
     const anySolo = isAnyTrackSoloed();
     const div = document.createElement("div");
     const isEffectivelyMuted = track.muted || (anySolo && !track.solo);
+    const hasActiveFx = track.fx.reverb > 0 || track.fx.delay > 0 || track.fx.echo > 0 || track.fx.autowah || track.fx.flanger;
+
     div.className = `track-tcp ${track.id === state.activeTrackId ? "selected" : ""}`;
     div.style.opacity = isEffectivelyMuted ? "0.52" : "1";
 
     div.onclick = (e) => {
-      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "BUTTON") return;
+      if (["INPUT", "SELECT", "BUTTON", "LABEL"].includes(e.target.tagName)) return;
       state.activeTrackId = track.id;
       syncTrackADSRSliders();
       renderTracksTCP();
@@ -750,6 +837,7 @@ function renderTracksTCP() {
       <div class="track-tcp-top">
         <span class="track-name">${track.name}</span>
         <div class="track-ms-btns">
+          <button class="ms-btn ${hasActiveFx ? "fx-active" : ""}" onclick="toggleTrackFxPanel(${track.id})" title="Efectos individuales de esta pista">FX</button>
           <button class="ms-btn ${track.muted ? "mute-on" : ""}" onclick="toggleTrackMute(${track.id})" title="Mute (M)">M</button>
           <button class="ms-btn ${track.solo ? "solo-on" : ""}" onclick="toggleTrackSolo(${track.id})" title="Solo (S)">S</button>
           <button class="ms-btn" onclick="deleteTrack(${track.id})" title="Eliminar pista">✕</button>
@@ -771,9 +859,44 @@ function renderTracksTCP() {
             oninput="updateTrackMix(${track.id}, 'pan', this.value)" style="width: 62%;" />
         </div>
       </div>
+
+      ${track.fxOpen ? `
+      <div class="track-fx-drawer">
+        <div class="fx-drawer-title">🎛 FX Canal: ${track.name}</div>
+        <label class="fx-row-item">
+          <span>🌊 Reverb</span>
+          <input type="range" min="0" max="0.8" step="0.05" value="${track.fx.reverb}" oninput="updateTrackFx(${track.id}, 'reverb', this.value)" />
+        </label>
+        <label class="fx-row-item">
+          <span>🏔 Eco (Repetición)</span>
+          <input type="range" min="0" max="0.8" step="0.05" value="${track.fx.echo}" oninput="updateTrackFx(${track.id}, 'echo', this.value)" />
+        </label>
+        <label class="fx-row-item">
+          <span>⏱ Delay Corto</span>
+          <input type="range" min="0" max="0.8" step="0.05" value="${track.fx.delay}" oninput="updateTrackFx(${track.id}, 'delay', this.value)" />
+        </label>
+        <div class="fx-toggles-row">
+          <label><input type="checkbox" ${track.fx.autowah ? "checked" : ""} onchange="updateTrackFx(${track.id}, 'autowah', this.checked)" /> Auto-Wah</label>
+          <label><input type="checkbox" ${track.fx.flanger ? "checked" : ""} onchange="updateTrackFx(${track.id}, 'flanger', this.checked)" /> Flanger</label>
+        </div>
+      </div>` : ""}
     `;
     container.appendChild(div);
   });
+}
+
+function toggleTrackFxPanel(trackId) {
+  const t = state.tracks.find(tr => tr.id === trackId);
+  if (!t) return;
+  t.fxOpen = !t.fxOpen;
+  renderTracksTCP();
+}
+
+function updateTrackFx(trackId, key, val) {
+  const t = state.tracks.find(tr => tr.id === trackId);
+  if (!t) return;
+  if (!t.fx) t.fx = { reverb: 0.15, delay: 0, echo: 0, autowah: false, flanger: false };
+  t.fx[key] = typeof val === "boolean" ? val : Number(val);
 }
 
 
@@ -1021,7 +1144,8 @@ function playLiveNoteOffset(offset) {
   if (!activeTrack) return;
   const midi = (state.baseOctave + 1) * 12 + offset;
   const inst = state.catalog.instrumentos.find(i => i.id === activeTrack.instrumentId) || state.catalog.instrumentos[0];
-  triggerInstrumentVoice(audioCtx, autoWahFilter, inst, midi, audioCtx.currentTime, 0.35, activeTrack.volume, activeTrack.pan);
+  const trackDest = createTrackFxChain(audioCtx, autoWahFilter, activeTrack.fx);
+  triggerInstrumentVoice(audioCtx, trackDest, inst, midi, audioCtx.currentTime, 0.35, activeTrack.volume, activeTrack.pan);
 
   if (state.isRecordingMidi && state.isPlaying) {
     activeTrack.notes.push({ midi, step: state.currentStep, len: 2 });
@@ -1566,9 +1690,10 @@ async function renderProjectOfflineBuffer(targetSampleRate = 44100) {
 
   state.tracks.forEach(track => {
     if (track.muted || (anySolo && !track.solo)) return;
-    const inst = state.catalog.instrumentos.find(i => i.id === track.instrumentId) || state.catalog.instrumentos;
+    const inst = state.catalog.instrumentos.find(i => i.id === track.instrumentId) || state.catalog.instrumentos[0];
+    const trackDest = createTrackFxChain(offlineCtx, fxBus, track.fx);
     track.notes.forEach(n => {
-      triggerInstrumentVoice(offlineCtx, fxBus, inst, n.midi, n.step * stepSec, stepSec * (n.len || 1), track.volume, track.pan);
+      triggerInstrumentVoice(offlineCtx, trackDest, inst, n.midi, n.step * stepSec, stepSec * (n.len || 1), track.volume, track.pan);
     });
   });
 
@@ -1645,7 +1770,7 @@ async function executeProfessionalExport(formatKey) {
       triggerBlobDownload(blob, `${baseName}_320kbps.ogg`);
       statusEl.textContent = "✅ OGG Vorbis 320 kbps descargado.";
     } else if (formatKey.startsWith("mp3_")) {
-      const kbps = Number(formatKey.split("_")) || 320;
+        const kbps = Number(formatKey.split("_")[1]) || 320;
       statusEl.textContent = `⏳ Codificando MP3 ${kbps} kbps...`;
       const blob = encodeBufferToMp3(renderedBuffer, kbps);
       triggerBlobDownload(blob, `${baseName}_${kbps}kbps.mp3`);
@@ -1993,9 +2118,14 @@ function applyMusicalStyle(styleId) {
   }
   if (Array.isArray(st.plantilla_pistas) && st.plantilla_pistas.length > 0) {
     state.tracks = [];
-    st.plantilla_pistas.forEach(instName => {
+    st.plantilla_pistas.forEach((instName, idx) => {
       const found = state.catalog.instrumentos.find(i => i.nombre.toLowerCase().includes(instName.toLowerCase()));
-      addNewTrack(found ? found.id : null);
+      const tr = addNewTrack(found ? found.id : null);
+      if (st.fx_sugeridos) {
+        tr.fx.autowah = !!st.fx_sugeridos.autowah && idx === 0;
+        tr.fx.flanger = !!st.fx_sugeridos.flanger && idx === 0;
+        tr.fx.echo = st.fx_sugeridos.delay && st.fx_sugeridos.delay !== "off" ? 0.25 : 0;
+      }
     });
   }
 
