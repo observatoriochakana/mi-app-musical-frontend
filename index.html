@@ -492,30 +492,46 @@
   </div>
   
   <!-- MODAL 1: SAMPLER Y AFINADOR POR INSTRUMENTO -->
+  <!-- MODAL 1: SAMPLER, AFINADOR Y EDICIÓN POR INSTRUMENTO -->
   <div id="sampler-modal" class="modal-backdrop hidden" onclick="if(event.target===this) closeSamplerModal()">
-    <div class="modal-box" style="max-width: 680px;">
+    <div class="modal-box" style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
       <div class="modal-header">
-        <h3 id="sampler-modal-title">🎙 Samples Reales y Afinador DSP</h3>
+        <h3 id="sampler-modal-title">🎙 Samples &amp; Afinador</h3>
         <button class="btn-icon" onclick="closeSamplerModal()">✕</button>
       </div>
+
+      <!-- Edición de nombre y eliminación de instrumento -->
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-bottom:0.8rem; background:var(--bg-deep); padding:0.65rem; border-radius:8px; border:1px solid var(--border-warm);">
+        <label class="small-label" style="width:100%;">Nombre del Instrumento:</label>
+        <input type="text" id="edit-sampler-inst-name" class="warm-input" style="flex:1; min-width:180px;" placeholder="Nombre del instrumento" />
+        <button class="btn-danger btn-xs" onclick="deleteCurrentSamplerInstrument()" title="Eliminar este instrumento del catálogo">🗑 Eliminar Instrumento</button>
+      </div>
+
       <p class="muted-text" id="sampler-modal-subtitle">
-        Sube una o varias notas grabadas de este instrumento. El afinador detectará automáticamente los Hz, la nota exacta y mapeará todo el teclado.
+        Graba en vivo o sube notas. El afinador detecta los Hz y la nota, y puedes corregir cada nota manualmente si lo deseas.
       </p>
 
-      <div style="margin: 1rem 0; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-        <button id="btn-sampler-mic-rec" class="btn-danger" onclick="toggleSamplerLiveRecording()">🔴 Grabar Nota(s) en Vivo</button>
+      <div style="margin: 0.85rem 0; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+        <button id="btn-sampler-mic-rec" class="btn-danger btn-sm" onclick="toggleSamplerLiveRecording()">🔴 Grabar Nota(s) en Vivo</button>
         <input type="file" id="instrument-sample-files" accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a" multiple style="display:none" onchange="handleInstrumentSamplesUpload(this.files)" />
-        <button class="btn-primary-warm" onclick="document.getElementById('instrument-sample-files').click()">📂 Subir Audio (.wav/.mp3)</button>
-        <button class="btn-secondary-warm btn-sm" onclick="clearInstrumentSamples()">🗑 Restaurar Síntesis</button>
+        <button class="btn-secondary-warm btn-sm" onclick="document.getElementById('instrument-sample-files').click()">📂 Subir Audio (.wav/.mp3)</button>
+        <button class="btn-secondary-warm btn-xs" onclick="clearInstrumentSamples()">🧹 Limpiar Notas</button>
       </div>
 
-      <div id="tuner-live-readout" style="background: var(--bg-deep); border: 1px solid var(--border-warm); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.9rem; font-family: var(--font-mono); font-size: 0.85rem; color: var(--amber-primary);">
-        Afinador listo: Selecciona uno o varios archivos de audio de notas individuales.
+      <div id="tuner-live-readout" style="background: var(--bg-deep); border: 1px solid var(--border-warm); border-radius: 8px; padding: 0.7rem; margin-bottom: 0.85rem; font-family: var(--font-mono); font-size: 0.82rem; color: var(--amber-primary);">
+        Afinador listo: Graba o sube notas para mapearlas.
       </div>
 
-      <div id="sampler-notes-list" class="freesound-results" style="max-height: 250px;"></div>
+      <div id="sampler-notes-list" class="freesound-results" style="max-height: 230px; margin-bottom: 1rem;"></div>
+
+      <!-- Botón Guardar Cambios (Nube + Dispositivo) -->
+      <div style="display:flex; justify-content:flex-end; gap:0.6rem; border-top:1px solid var(--border-warm); padding-top:0.8rem;">
+        <button class="btn-secondary-warm" onclick="closeSamplerModal()">Cancelar</button>
+        <button class="btn-primary-warm" onclick="saveSamplerAndInstrumentChanges()">💾 Guardar Cambios</button>
+      </div>
     </div>
   </div>
+
 
   <!-- MODAL 2: CREAR NUEVO INSTRUMENTO ARTESANAL / ÉTNICO -->
   <div id="new-inst-modal" class="modal-backdrop hidden" onclick="if(event.target===this) closeNewInstrumentModal()">

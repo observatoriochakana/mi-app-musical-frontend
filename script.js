@@ -1765,22 +1765,47 @@ async function syncWithBackend() {
     const res = await fetch(`${BACKEND_URL}/api/catalogo`);
     if (!res.ok) throw new Error("Offline");
     const data = await res.json();
-    if (data.instrumentos?.length > state.catalog.instrumentos.length) {
-      state.catalog.instrumentos = data.instrumentos;
+
+    // Fusionar instrumentos de Render que no estén aún en el dispositivo (por nombre)
+    if (Array.isArray(data.instrumentos)) {
+      data.instrumentos.forEach(remoteInst => {
+        const exists = state.catalog.instrumentos.some(
+          localInst => localInst.nombre.toLowerCase() === remoteInst.nombre.toLowerCase()
+        );
+        if (!exists) {
+          state.catalog.instrumentos.push(remoteInst);
+        }
+      });
     }
-    if (data.estilos_musicales?.length > state.catalog.estilos_musicales.length) {
+
+    if (Array.isArray(data.estilos_musicales) && data.estilos_musicales.length > state.catalog.estilos_musicales.length) {
       state.catalog.estilos_musicales = data.estilos_musicales;
     }
+
     saveCatalogToLocalBackup();
     pill.className = "status-pill status-online";
     text.textContent = "Render Online";
   } catch (e) {
     pill.className = "status-pill status-offline";
-    text.textContent = "Modo Local (30 Inst. / 50 Estilos)";
+    text.textContent = "Modo Local";
   }
   renderCatalog();
   renderStylesSelectors();
   if (state.tracks.length === 0) { addNewTrack(1); addNewTrack(2); }
+}
+
+async function pushInstrumentToCloud(instObj) {
+  try {
+    const cleanInst = { ...instObj };
+    delete cleanInst._decodedBuffers; // No enviar buffers binarios pesados al JSON
+    await fetch(`${BACKEND_URL}/api/catalogo/importar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ instrumentos: [cleanInst] })
+    });
+  } catch (e) {
+    console.warn("Sincronización pendiente con Render:", e);
+  }
 }
 
 async function importMassJson() {
@@ -1914,10 +1939,132 @@ function openSamplerModal(instId) {
   const inst = state.catalog.instrumentos.find(i => i.id === instId);
   if (!inst) return;
   document.getElementById("sampler-modal-title").textContent = `🎙 Samples & Afinador: ${inst.nombre}`;
-  document.getElementById("tuner-live-readout").textContent = `Instrumento: ${inst.nombre} • Nota raíz catálogo: ${inst.nota_raiz}`;
+  document.getElementById("edit-sampler-inst-name").value = inst.nombre;
+  document.getElementById("tuner-live-readout").textContent = `Instrumento: ${inst.nombre} • Nota raíz: ${inst.nota_raiz}`;
   document.getElementById("sampler-modal").classList.remove("hidden");
   renderSamplerNotesList();
 }
+
+function renderSamplerNotesList() {
+  const list = document.getElementById("sampler-notes-list");
+  const inst = state.catalog.instrumentos.find(i => i.id === currentSamplerInstrumentId);
+  if (!list || !inst) return;
+
+  const samples = inst.customSamples || [];
+  if (samples.length === 0) {
+    list.innerHTML = `<p class="muted-text">Este instrumento usa síntesis física actualmente. Graba en vivo o sube notas para reemplazarla.</p>`;
+    return;
+  }
+
+  list.innerHTML = samples.map((s, idx) => `
+    <div class="fs-item" style="flex-wrap:wrap;">
+      <div>
+        <strong>Nota: <span style="color:var(--amber-primary);">${s.noteName}</span> (${s.freq} Hz)</strong>
+        <div class="muted-text">${s.fileName} • ${s.cents >= 0 ? "+" : ""}${s.cents} cents</div>
+      </div>
+      <div style="display:flex; gap:0.35rem; align-items:center; flex-wrap:wrap;">
+        <button class="btn-xs btn-secondary-warm" onclick="shiftSampleSemitone(${inst.id}, ${idx}, -1)" title="Bajar 1 semitono">-1 st</button>
+        <button class="btn-xs btn-secondary-warm" onclick="shiftSampleSemitone(${inst.id}, ${idx}, 1)" title="Subir 1 semitono">+1 st</button>
+        <button class="btn-xs btn-secondary-warm" onclick="editSampleNotePrompt(${inst.id}, ${idx})" title="Escribir nota exacta (ej: D4, F#3)">✏ Nota</button>
+        <button class="btn-xs btn-primary-warm" onclick="previewCustomSample(${inst.id}, ${idx})">▶</button>
+        <button class="btn-xs btn-danger" onclick="removeSingleCustomSample(${inst.id}, ${idx})">✕</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function shiftSampleSemitone(instId, idx, delta) {
+  const inst = state.catalog.instrumentos.find(i => i.id === instId);
+  const s = inst?.customSamples?.[idx];
+  if (!s) return;
+  const newMidi = Math.max(24, Math.min(108, s.midi + delta));
+  const newFreq = 440 * Math.pow(2, (newMidi - 69) / 12);
+  const info = freqToNoteDetails(newFreq);
+  s.midi = info.midi;
+  s.noteName = info.noteName;
+  s.freq = info.freq;
+  s.cents = 0;
+  renderSamplerNotesList();
+}
+
+function editSampleNotePrompt(instId, idx) {
+  const inst = state.catalog.instrumentos.find(i => i.id === instId);
+  const s = inst?.customSamples?.[idx];
+  if (!s) return;
+  const input = prompt(`Escribe la nota correcta para "${s.fileName}" (ej: C3, D#4, G2):`, s.noteName);
+  if (!input) return;
+  const clean = input.trim().toUpperCase();
+  const midi = noteNameToMidi(clean);
+  const freq = 440 * Math.pow(2, (midi - 69) / 12);
+  s.midi = midi;
+  s.noteName = clean;
+  s.freq = Number(freq.toFixed(2));
+  s.cents = 0;
+  renderSamplerNotesList();
+}
+
+async function saveSamplerAndInstrumentChanges() {
+  const inst = state.catalog.instrumentos.find(i => i.id === currentSamplerInstrumentId);
+  if (!inst) return;
+
+  const newName = document.getElementById("edit-sampler-inst-name").value.trim();
+  if (newName) {
+    inst.nombre = newName;
+    // Actualizar también las pistas abiertas en el estudio que usen este instrumento
+    state.tracks.forEach(t => { if (t.instrumentId === inst.id) t.name = newName; });
+  }
+
+  if (Array.isArray(inst.customSamples) && inst.customSamples.length > 0) {
+    inst.nota_raiz = inst.customSamples.noteName;
+  }
+
+  saveCatalogToLocalBackup();
+  renderCatalog();
+  renderTracksTCP();
+  await pushInstrumentToCloud(inst);
+  closeSamplerModal();
+  showToast(`💾 Cambios guardados y sincronizados: ${inst.nombre}`);
+}
+
+function deleteCurrentSamplerInstrument() {
+  const inst = state.catalog.instrumentos.find(i => i.id === currentSamplerInstrumentId);
+  if (!inst) return;
+  if (!confirm(`¿Seguro que deseas eliminar "${inst.nombre}" del catálogo?`)) return;
+
+  state.catalog.instrumentos = state.catalog.instrumentos.filter(i => i.id !== inst.id);
+  saveCatalogToLocalBackup();
+  renderCatalog();
+  renderTracksTCP();
+  closeSamplerModal();
+  showToast(`🗑 Instrumento "${inst.nombre}" eliminado`);
+}
+
+async function createCustomInstrument() {
+  const nombre = document.getElementById("custom-inst-name").value.trim();
+  if (!nombre) return showToast("Escribe el nombre del instrumento");
+
+  const newInst = {
+    id: Date.now(),
+    nombre,
+    categoria: document.getElementById("custom-inst-cat").value,
+    origen_cultural: document.getElementById("custom-inst-origin").value.trim() || "Artesanal / Personalizado",
+    nota_raiz: document.getElementById("custom-inst-root").value.trim().toUpperCase() || "C4",
+    timbre: document.getElementById("custom-inst-timbre").value,
+    envolvente_adsr: { attack: 0.01, decay: 0.3, sustain: 0.8, release: 0.35 },
+    descripcion_corta: document.getElementById("custom-inst-desc").value.trim() || "Instrumento personalizado creado en EthnoReaper Studio.",
+    customSamples: []
+  };
+
+  state.catalog.instrumentos.push(newInst);
+  saveCatalogToLocalBackup();
+  renderCatalog();
+  renderTracksTCP();
+  closeNewInstrumentModal();
+  await pushInstrumentToCloud(newInst);
+  showToast(`🪕 "${nombre}" guardado y sincronizado en la nube.`);
+  openSamplerModal(newInst.id);
+}
+
 
 function closeSamplerModal() {
   document.getElementById("sampler-modal").classList.add("hidden");
