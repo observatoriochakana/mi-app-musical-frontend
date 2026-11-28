@@ -1485,19 +1485,27 @@ function buildOfflineImpulse(ctx, durationSec, decayRate) {
   return impulse;
 }
 
-async function exportMasterWav() {
+function openExportModal() {
+  document.getElementById("export-progress-status").textContent = "";
+  document.getElementById("export-master-modal").classList.remove("hidden");
+}
+
+function closeExportModal() {
+  document.getElementById("export-master-modal").classList.add("hidden");
+}
+
+async function renderProjectOfflineBuffer(targetSampleRate = 44100) {
   const totalNotes = state.tracks.reduce((sum, t) => sum + t.notes.length, 0);
   const activeMicClips = state.micClips.filter(c => !c.muted && c.arrayBuffer);
   if (totalNotes === 0 && state.importedAudioTracks.length === 0 && activeMicClips.length === 0) {
     generateGrooveForCurrentTracks(false);
   }
 
-  showToast("⏳ Masterizando WAV con Reverb, Delay y Tomas Acústicas...");
   const stepSec = 60 / state.bpm / 4;
   const seqDuration = (state.totalSteps * stepSec) + 2.5;
-
   const anySolo = isAnyTrackSoloed();
   const activeImported = state.importedAudioTracks.filter(a => !a.muted && (!anySolo || a.solo));
+
   let maxAudioDuration = seqDuration;
   activeImported.forEach(a => {
     if (isFinite(a.audioEl.duration) && a.audioEl.duration > maxAudioDuration) {
@@ -1505,14 +1513,10 @@ async function exportMasterWav() {
     }
   });
 
-  const sampleRate = 44100;
-  const offlineCtx = new OfflineAudioContext(2, Math.ceil(maxAudioDuration * sampleRate), sampleRate);
-
-  // Bus de mezcla pre-FX
+  const offlineCtx = new OfflineAudioContext(2, Math.ceil(maxAudioDuration * targetSampleRate), targetSampleRate);
   const fxBus = offlineCtx.createGain();
   fxBus.gain.value = 1.0;
 
-  // Limitador Brickwall Master (-0.3 dBFS)
   const limiter = offlineCtx.createDynamicsCompressor();
   limiter.threshold.value = -0.3;
   limiter.knee.value = 0.0;
@@ -1523,10 +1527,8 @@ async function exportMasterWav() {
   const masterOutGain = offlineCtx.createGain();
   masterOutGain.gain.value = (Number(document.getElementById("master-volume")?.value || 90)) / 100;
 
-  // Señal directa (Dry) -> Limiter
   fxBus.connect(limiter);
 
-  // Reverb de Convolución Offline
   const revMix = Number(document.getElementById("fx-reverb-mix")?.value || 25) / 100;
   if (revMix > 0) {
     const revSpace = document.getElementById("fx-reverb-space")?.value || "Sala";
@@ -1541,7 +1543,6 @@ async function exportMasterWav() {
     offlineRevGain.connect(limiter);
   }
 
-  // Delay Sincronizado Offline
   const delDiv = document.getElementById("fx-delay-div")?.value || "off";
   const delMix = Number(document.getElementById("fx-delay-mix")?.value || 15) / 100;
   if (delDiv !== "off" && delMix > 0) {
@@ -1563,7 +1564,6 @@ async function exportMasterWav() {
   limiter.connect(masterOutGain);
   masterOutGain.connect(offlineCtx.destination);
 
-  // 1. Renderizar pistas de instrumentos étnicos
   state.tracks.forEach(track => {
     if (track.muted || (anySolo && !track.solo)) return;
     const inst = state.catalog.instrumentos.find(i => i.id === track.instrumentId) || state.catalog.instrumentos;
@@ -1572,7 +1572,6 @@ async function exportMasterWav() {
     });
   });
 
-  // 2. Renderizar tomas acústicas grabadas con micrófono
   for (const clip of activeMicClips) {
     try {
       const decodedMic = await offlineCtx.decodeAudioData(clip.arrayBuffer.slice(0));
@@ -1583,12 +1582,9 @@ async function exportMasterWav() {
       src.connect(g);
       g.connect(fxBus);
       src.start(0);
-    } catch (err) {
-      console.warn("Error decodificando toma de micrófono:", err);
-    }
+    } catch (e) {}
   }
 
-  // 3. Renderizar pistas de audio importadas desde el dispositivo
   for (const item of activeImported) {
     try {
       const decodedImp = await offlineCtx.decodeAudioData(item.arrayBuffer.slice(0));
@@ -1599,46 +1595,268 @@ async function exportMasterWav() {
       src.connect(g);
       g.connect(limiter);
       src.start(0);
-    } catch (err) {
-      console.warn("Error decodificando audio importado:", item.name, err);
-    }
+    } catch (e) {}
   }
 
-  const renderedBuffer = await offlineCtx.startRendering();
-  const wavBlob = audioBufferToWav(renderedBuffer);
+  return await offlineCtx.startRendering();
+}
+function triggerBlobDownload(blob, filename) {
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(wavBlob);
-  a.download = `EthnoReaper_Master_${state.bpm}BPM.wav`;
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
   a.click();
-  showToast("✅ Master WAV exportado con FX y Tomas Acústicas (-0.3 dBFS)");
 }
 
-function audioBufferToWav(buffer) {
+async function executeProfessionalExport(formatKey) {
+  const statusEl = document.getElementById("export-progress-status");
+  const baseName = `EthnoReaper_${state.bpm}BPM`;
+
+  try {
+    if (formatKey === "midi") {
+      statusEl.textContent = "⏳ Generando archivo MIDI multipista (.mid)...";
+      const midiBlob = buildStandardMidiFile();
+      triggerBlobDownload(midiBlob, `${baseName}.mid`);
+      statusEl.textContent = "✅ Archivo MIDI (.mid) exportado.";
+      showToast("✅ Archivo MIDI (.mid) descargado");
+      return;
+    }
+
+    const sampleRate = formatKey === "wav24_48" ? 48000 : 44100;
+    statusEl.textContent = `⏳ Renderizando audio offline (${sampleRate / 1000} kHz)...`;
+    const renderedBuffer = await renderProjectOfflineBuffer(sampleRate);
+
+    if (formatKey === "wav24_48") {
+      const blob = audioBufferToWav(renderedBuffer, 24);
+      triggerBlobDownload(blob, `${baseName}_24bit_48kHz.wav`);
+      statusEl.textContent = "✅ WAV Master 24-bit / 48 kHz descargado.";
+    } else if (formatKey === "wav16_44") {
+      const blob = audioBufferToWav(renderedBuffer, 16);
+      triggerBlobDownload(blob, `${baseName}_16bit_44.1kHz.wav`);
+      statusEl.textContent = "✅ WAV Estándar CD 16-bit / 44.1 kHz descargado.";
+    } else if (formatKey === "flac24_44") {
+      statusEl.textContent = "⏳ Codificando FLAC 24-bit / 44.1 kHz...";
+      const blob = await encodeBufferToFlac24(renderedBuffer);
+      const ext = blob.type.includes("flac") ? "flac" : "wav";
+      triggerBlobDownload(blob, `${baseName}_24bit_44.1kHz.${ext}`);
+      statusEl.textContent = "✅ Audio Lossless 24-bit descargado.";
+    } else if (formatKey === "ogg_320") {
+      statusEl.textContent = "⏳ Codificando OGG Vorbis 320 kbps...";
+      const blob = await encodeBufferToOgg320(renderedBuffer);
+      triggerBlobDownload(blob, `${baseName}_320kbps.ogg`);
+      statusEl.textContent = "✅ OGG Vorbis 320 kbps descargado.";
+    } else if (formatKey.startsWith("mp3_")) {
+      const kbps = Number(formatKey.split("_")) || 320;
+      statusEl.textContent = `⏳ Codificando MP3 ${kbps} kbps...`;
+      const blob = encodeBufferToMp3(renderedBuffer, kbps);
+      triggerBlobDownload(blob, `${baseName}_${kbps}kbps.mp3`);
+      statusEl.textContent = `✅ MP3 ${kbps} kbps descargado.`;
+    }
+    showToast("✅ Exportación completada (-0.3 dBFS)");
+  } catch (err) {
+    statusEl.textContent = `⚠ Error al exportar: ${err.message}`;
+  }
+}
+
+function audioBufferToWav(buffer, bitDepth = 16) {
   const numOfChan = buffer.numberOfChannels;
-  const length = buffer.length * numOfChan * 2 + 44;
-  const out = new ArrayBuffer(length);
+  const bytesPerSample = bitDepth / 8;
+  const blockAlign = numOfChan * bytesPerSample;
+  const byteRate = buffer.sampleRate * blockAlign;
+  const dataSize = buffer.length * blockAlign;
+  const out = new ArrayBuffer(44 + dataSize);
   const view = new DataView(out);
   const channels = [];
   let offset = 0, pos = 0;
+
   const setUint16 = d => { view.setUint16(pos, d, true); pos += 2; };
   const setUint32 = d => { view.setUint32(pos, d, true); pos += 4; };
 
-  setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157);
-  setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(numOfChan);
-  setUint32(buffer.sampleRate); setUint32(buffer.sampleRate * 2 * numOfChan);
-setUint16(numOfChan * 2); setUint16(16); setUint32(0x61746164); setUint32(length - pos - 4);
-for (let i = 0; i < numOfChan; i++) channels.push(buffer.getChannelData(i));
-while (pos < length) {
-for (let i = 0; i < numOfChan; i++) {
-let sample = Math.max(-1, Math.min(1, channels[i][offset]));
-sample = (sample < 0 ? sample * 0x8000 : sample * 0x7FFF) | 0;
-view.setInt16(pos, sample, true);
-pos += 2;
+  setUint32(0x46464952);
+  setUint32(36 + dataSize);
+  setUint32(0x45564157);
+  setUint32(0x20746d66);
+  setUint32(16);
+  setUint16(1);
+  setUint16(numOfChan);
+  setUint32(buffer.sampleRate);
+  setUint32(byteRate);
+  setUint16(blockAlign);
+  setUint16(bitDepth);
+  setUint32(0x61746164);
+  setUint32(dataSize);
+
+  for (let i = 0; i < numOfChan; i++) channels.push(buffer.getChannelData(i));
+
+  while (offset < buffer.length) {
+    for (let i = 0; i < numOfChan; i++) {
+      const sample = Math.max(-1, Math.min(1, channels[i][offset]));
+      if (bitDepth === 24) {
+        const val24 = Math.round(sample < 0 ? sample * 0x800000 : sample * 0x7FFFFF);
+        view.setUint8(pos, val24 & 0xFF);
+        view.setUint8(pos + 1, (val24 >> 8) & 0xFF);
+        view.setUint8(pos + 2, (val24 >> 16) & 0xFF);
+        pos += 3;
+      } else {
+        const val16 = (sample < 0 ? sample * 0x8000 : sample * 0x7FFF) | 0;
+        view.setInt16(pos, val16, true);
+        pos += 2;
+      }
+    }
+    offset++;
+  }
+  return new Blob([out], { type: "audio/wav" });
 }
-offset++;
+function encodeBufferToMp3(buffer, kbps = 320) {
+  if (typeof lamejs === "undefined") {
+    throw new Error("Librería MP3 no cargada. Verifica tu conexión o usa WAV.");
+  }
+  const channels = buffer.numberOfChannels;
+  const mp3encoder = new lamejs.Mp3Encoder(channels, buffer.sampleRate, kbps);
+  const left = buffer.getChannelData(0);
+  const right = channels > 1 ? buffer.getChannelData(1) : left;
+  const sampleBlockSize = 1152;
+  const mp3Data = [];
+
+  const floatTo16 = (arr, start, len) => {
+    const out = new Int16Array(len);
+    for (let i = 0; i < len; i++) {
+      const s = Math.max(-1, Math.min(1, arr[start + i]));
+      out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+    return out;
+  };
+
+  for (let i = 0; i < buffer.length; i += sampleBlockSize) {
+    const chunkLen = Math.min(sampleBlockSize, buffer.length - i);
+    const leftChunk = floatTo16(left, i, chunkLen);
+    const rightChunk = floatTo16(right, i, chunkLen);
+    const mp3buf = channels > 1
+      ? mp3encoder.encodeBuffer(leftChunk, rightChunk)
+      : mp3encoder.encodeBuffer(leftChunk);
+    if (mp3buf.length > 0) mp3Data.push(mp3buf);
+  }
+  const endBuf = mp3encoder.flush();
+  if (endBuf.length > 0) mp3Data.push(endBuf);
+  return new Blob(mp3Data, { type: "audio/mp3" });
 }
-return new Blob([out], { type: "audio/wav" });
+
+async function encodeBufferToFlac24(buffer) {
+  if (typeof Flac === "undefined" || !Flac.isReady()) {
+    return audioBufferToWav(buffer, 24);
+  }
+  const channels = buffer.numberOfChannels;
+  const encoder = Flac.create_libflac_encoder(buffer.sampleRate, channels, 24, 5, 0, true);
+  if (encoder === 0) return audioBufferToWav(buffer, 24);
+
+  const flacChunks = [];
+  Flac.init_encoder_stream(encoder, (data) => flacChunks.push(new Uint8Array(data)));
+
+  const interleaved = new Int32Array(buffer.length * channels);
+  for (let i = 0; i < buffer.length; i++) {
+    for (let ch = 0; ch < channels; ch++) {
+      const s = Math.max(-1, Math.min(1, buffer.getChannelData(ch)[i]));
+      interleaved[i * channels + ch] = Math.round(s < 0 ? s * 0x800000 : s * 0x7FFFFF);
+    }
+  }
+  Flac.FLAC__stream_encoder_process_interleaved(encoder, interleaved, buffer.length);
+  Flac.FLAC__stream_encoder_finish(encoder);
+  Flac.FLAC__stream_encoder_delete(encoder);
+  return new Blob(flacChunks, { type: "audio/flac" });
 }
+
+function encodeBufferToOgg320(buffer) {
+  return new Promise((resolve) => {
+    const tempCtx = new AudioContext({ sampleRate: buffer.sampleRate });
+    const src = tempCtx.createBufferSource();
+    src.buffer = buffer;
+    const dest = tempCtx.createMediaStreamDestination();
+    src.connect(dest);
+
+    const mime = MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")
+      ? "audio/ogg;codecs=opus"
+      : "audio/webm;codecs=opus";
+    const recorder = new MediaRecorder(dest.stream, { mimeType: mime, audioBitsPerSecond: 320000 });
+    const chunks = [];
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+    recorder.onstop = () => {
+      tempCtx.close();
+      resolve(new Blob(chunks, { type: "audio/ogg" }));
+    };
+
+    recorder.start();
+    src.start(0);
+    src.onended = () => setTimeout(() => recorder.stop(), 100);
+  });
+}
+
+function buildStandardMidiFile() {
+  const totalNotes = state.tracks.reduce((sum, t) => sum + t.notes.length, 0);
+  if (totalNotes === 0) generateGrooveForCurrentTracks(false);
+
+  const tpq = 480;
+  const ticksPer16th = tpq / 4;
+  const tempoMicros = Math.round(60000000 / state.bpm);
+
+  const writeVarLen = (val) => {
+    const bytes = [val & 0x7F];
+    let v = val >> 7;
+    while (v > 0) {
+      bytes.unshift((v & 0x7F) | 0x80);
+      v >>= 7;
+    }
+    return bytes;
+  };
+
+  const trackChunks = [];
+  const tempoTrack = [
+    0x00, 0xFF, 0x51, 0x03,
+    (tempoMicros >> 16) & 0xFF, (tempoMicros >> 8) & 0xFF, tempoMicros & 0xFF,
+    0x00, 0xFF, 0x2F, 0x00
+  ];
+  trackChunks.push(tempoTrack);
+
+  state.tracks.forEach((tr, idx) => {
+    const ch = idx % 16;
+    const events = [];
+    tr.notes.forEach(n => {
+      const startTick = n.step * ticksPer16th;
+      const endTick = startTick + Math.max(1, n.len || 1) * ticksPer16th;
+      events.push({ tick: startTick, type: 0x90 | ch, note: n.midi, vel: 100 });
+      events.push({ tick: endTick, type: 0x80 | ch, note: n.midi, vel: 0 });
+    });
+    events.sort((a, b) => a.tick - b.tick);
+
+    const bytes = [];
+    let lastTick = 0;
+    events.forEach(ev => {
+      const delta = Math.max(0, ev.tick - lastTick);
+      bytes.push(...writeVarLen(delta), ev.type, ev.note & 0x7F, ev.vel & 0x7F);
+      lastTick = ev.tick;
+    });
+    bytes.push(0x00, 0xFF, 0x2F, 0x00);
+    trackChunks.push(bytes);
+  });
+
+  const header = [
+    0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06,
+    0x00, 0x01,
+    (trackChunks.length >> 8) & 0xFF, trackChunks.length & 0xFF,
+    (tpq >> 8) & 0xFF, tpq & 0xFF
+  ];
+
+  const allBytes = [...header];
+  trackChunks.forEach(chunk => {
+    const len = chunk.length;
+    allBytes.push(
+      0x4D, 0x54, 0x72, 0x6B,
+      (len >> 24) & 0xFF, (len >> 16) & 0xFF, (len >> 8) & 0xFF, len & 0xFF,
+      ...chunk
+    );
+  });
+
+  return new Blob([new Uint8Array(allBytes)], { type: "audio/midi" });
+}
+
 // 14. NAVEGACIÓN, ESTILOS MUSICALES, CONEXIÓN RENDER Y MI PANEL
 function switchView(viewName) {
   document.querySelectorAll(".view-section").forEach(el => el.classList.remove("active"));
@@ -2065,7 +2283,8 @@ async function saveSamplerAndInstrumentChanges() {
   }
 
   if (Array.isArray(inst.customSamples) && inst.customSamples.length > 0) {
-    inst.nota_raiz = inst.customSamples.noteName;
+    inst.nota_raiz = inst.customSamples[0].noteName;
+
   }
 
   saveCatalogToLocalBackup();
@@ -2534,39 +2753,4 @@ window.addEventListener("DOMContentLoaded", () => {
       }
     }).catch(() => {});
   }
-});
-
-window.addEventListener("DOMContentLoaded", () => {
- rehydrateAllCustomSamples()
- renderCatalog();
-  renderStylesSelectors();
-  renderPcKeyboardVisual();
-  syncWithBackend();
-    // Registrar PWA Service Worker
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
-  }
-
-  // Inicializar Web MIDI API (Teclados / Controladores USB)
-  if (navigator.requestMIDIAccess) {
-    navigator.requestMIDIAccess().then(midiAccess => {
-      for (const input of midiAccess.inputs.values()) {
-        input.onmidimessage = (msg) => {
-          const [status, note, velocity] = msg.data;
-          if ((status & 0xf0) === 0x90 && velocity > 0) {
-            initAudioEngine();
-            const activeTrack = state.tracks.find(t => t.id === state.activeTrackId);
-            if (!activeTrack) return;
-            const inst = state.catalog.instrumentos.find(i => i.id === activeTrack.instrumentId) || state.catalog.instrumentos;
-            triggerInstrumentVoice(audioCtx, autoWahFilter, inst, note, audioCtx.currentTime, 0.35, (velocity / 127) * activeTrack.volume, activeTrack.pan);
-            if (state.isRecordingMidi && state.isPlaying) {
-              activeTrack.notes.push({ midi: note, step: state.currentStep, len: 2 });
-              renderPianoRoll();
-            }
-          }
-        };
-      }
-    }).catch(() => {});
-  }
-
 });

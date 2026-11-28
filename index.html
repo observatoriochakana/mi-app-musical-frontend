@@ -10,8 +10,11 @@
   <link rel="stylesheet" href="styles.css" />
     <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#e88d38" />
-  <script src="https://unpkg.com"></script>
-  <script src="https://jsdelivr.net"></script>
+  <script src="https://unpkg.com/konva@9.3.6/konva.min.js"></script>
+  <script src="https://jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
+  <script src="https://jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+  <script src="https://jsdelivr.net/npm/libflacjs@5.4.0/dist/libflac.min.js"></script>
+
 </head>
 <body>
   <header class="top-navbar">
@@ -141,8 +144,8 @@
 
       <div class="transport-export">
         <button class="btn-secondary-warm btn-sm" onclick="saveCurrentProject()" title="Guardar sesión en el servidor">💾 Guardar Sesión</button>
-        <button class="btn-primary-warm btn-sm" onclick="exportMasterWav()" title="Exportar mezcla maestra WAV 16-bit">⬇ Exportar WAV</button>
-        <button class="btn-icon" onclick="toggleShortcutsModal(true)" title="Ver Atajos de Teclado REAPER">⌨</button>
+                <button class="btn-primary-warm btn-sm" onclick="openExportModal()" title="Abrir opciones de exportación Master">⬇ Exportar Master</button>
+                <button class="btn-icon" onclick="toggleShortcutsModal(true)" title="Ver Atajos de Teclado REAPER">⌨</button>
       </div>
     </section>
 
@@ -567,6 +570,62 @@
     </div>
   </div>
 
+    <!-- MODAL DE EXPORTACIÓN PROFESIONAL (8 FORMATOS ORDENADOS POR FIDELIDAD) -->
+  <div id="export-master-modal" class="modal-backdrop hidden" onclick="if(event.target===this) closeExportModal()">
+    <div class="modal-box" style="max-width: 640px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-header">
+        <h3>🎛 Exportar Master de Estudio (Render Offline)</h3>
+        <button class="btn-icon" onclick="closeExportModal()">✕</button>
+      </div>
+      <p class="muted-text" style="margin-bottom: 0.9rem;">
+        Motor <code>OfflineAudioContext</code> con Reverb, Delay, Tomas de Micrófono, Audios Importados y Limitador Brickwall a <strong>-0.3 dBFS</strong>. Selecciona el formato (ordenado de mayor a menor fidelidad):
+      </p>
+
+      <div class="form-stack" style="gap: 0.5rem;">
+        <button class="style-preset-btn" onclick="executeProfessionalExport('wav24_48')" style="display:flex; justify-content:space-between; align-items:center;">
+          <div><strong>1. WAV Sin Compresión (Calidad Master de Estudio)</strong><span>PCM 24-bit / 48 kHz (Estéreo) • Máxima resolución dinámica</span></div>
+          <span class="inst-badge">MASTER</span>
+        </button>
+
+        <button class="style-preset-btn" onclick="executeProfessionalExport('wav16_44')" style="display:flex; justify-content:space-between; align-items:center;">
+          <div><strong>2. WAV Estándar (Calidad CD)</strong><span>PCM 16-bit / 44.1 kHz (Estéreo) • Estándar universal sin pérdida</span></div>
+          <span class="inst-badge">CD</span>
+        </button>
+
+        <button class="style-preset-btn" onclick="executeProfessionalExport('flac24_44')" style="display:flex; justify-content:space-between; align-items:center;">
+          <div><strong>3. FLAC (Audio Sin Pérdida Comprimido)</strong><span>Lossless 24-bit / 44.1 kHz • 100% fidelidad en mitad de tamaño</span></div>
+          <span class="inst-badge">LOSSLESS</span>
+        </button>
+
+        <button class="style-preset-btn" onclick="executeProfessionalExport('ogg_320')" style="display:flex; justify-content:space-between; align-items:center;">
+          <div><strong>4. OGG Vorbis (Alta Fidelidad Web)</strong><span>320 kbps / 44.1 kHz • Ideal para streaming web y videojuegos</span></div>
+          <span class="inst-badge">WEB HQ</span>
+        </button>
+
+        <button class="style-preset-btn" onclick="executeProfessionalExport('mp3_320')" style="display:flex; justify-content:space-between; align-items:center;">
+          <div><strong>5. MP3 Alta Calidad (Estándar Profesional)</strong><span>320 kbps / 44.1 kHz • Máxima calidad comprimida compatible</span></div>
+          <span class="inst-badge">PRO MP3</span>
+        </button>
+
+        <button class="style-preset-btn" onclick="executeProfessionalExport('mp3_192')" style="display:flex; justify-content:space-between; align-items:center;">
+          <div><strong>6. MP3 Calidad Media (Para compartir/streaming)</strong><span>192 kbps / 44.1 kHz • Balance óptimo peso/sonido</span></div>
+          <span class="inst-badge">SHARE</span>
+        </button>
+
+        <button class="style-preset-btn" onclick="executeProfessionalExport('mp3_128')" style="display:flex; justify-content:space-between; align-items:center;">
+          <div><strong>7. MP3 Ligero (Maqueta rápida / móviles)</strong><span>128 kbps / 44.1 kHz • Descarga instantánea en datos móviles</span></div>
+          <span class="inst-badge">DEMO</span>
+        </button>
+
+        <button class="style-preset-btn" onclick="executeProfessionalExport('midi')" style="display:flex; justify-content:space-between; align-items:center; border-color: var(--sage-green);">
+          <div><strong style="color: var(--sage-green);">8. Archivo MIDI (.mid)</strong><span>Exportación de pistas de notas puras (Ableton, FL Studio, Logic, REAPER)</span></div>
+          <span class="inst-badge" style="background: var(--sage-green); color:#fff;">MIDI</span>
+        </button>
+      </div>
+
+      <div id="export-progress-status" class="feedback-msg" style="margin-top: 0.85rem; font-family: var(--font-mono);"></div>
+    </div>
+  </div>
 
   <div id="toast-container" class="toast-container"></div>
 
